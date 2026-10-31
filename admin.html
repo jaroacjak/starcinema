@@ -18,7 +18,7 @@ h2{color:var(--gold);margin-top:0}
 label{display:block;margin:13px 0 6px}
 input,textarea{width:100%;padding:12px;border-radius:8px;border:1px solid #55556c;background:#101020;color:white;font:inherit}
 textarea{min-height:85px;resize:vertical}
-button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:pointer;margin:10px 8px 0 0}
+button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:pointer;margin:8px 8px 0 0}
 .primary{background:var(--gold);color:#171717}
 .danger{background:#a93645;color:white}
 .edit{background:#424269;color:white}
@@ -26,6 +26,11 @@ button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:poin
 .muted{color:var(--muted);font-size:14px;line-height:1.5}
 .warning{background:#3a2b16;border:1px solid #9b742a;padding:14px;border-radius:9px;color:#ffe3a0;line-height:1.5}
 #status{margin-top:12px;color:var(--gold)}
+#scanner{max-width:500px;margin:15px auto}
+.result{padding:15px;border-radius:9px;margin-top:15px;background:#292941;line-height:1.6}
+.good{border:1px solid #38a169;color:#a7f3c2}
+.bad{border:1px solid #c44;color:#ffb5b5}
+.ticket-status{font-weight:bold}
 </style>
 </head>
 <body>
@@ -36,10 +41,23 @@ button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:poin
 
 <main>
 <div class="warning">
-Administrácia je bez prihlasovania. Verejné zapisovanie do databázy znamená, že obsah môže meniť aj iný návštevník.
+Administrácia je bez prihlasovania. Každý, kto má prístup k tejto stránke a databáze, môže meniť jej obsah. Nepoužívaj verejné pravidlá na skutočnú prevádzku.
 </div>
 
 <section class="panel" style="margin-top:22px">
+<h2>📷 Skenovanie vstupeniek</h2>
+<p class="muted">Namier kameru na čiarový kód vstupenky. Systém skontroluje rezerváciu a označí ju ako použitú.</p>
+<div id="scanner"></div>
+<button class="primary" id="startScanner" type="button">Spustiť kameru</button>
+<button class="edit" id="stopScanner" type="button">Zastaviť kameru</button>
+
+<label for="manualCode">Alebo zadaj kód ručne</label>
+<input id="manualCode" placeholder="Napr. SC-ABC1234567">
+<button class="primary" id="checkManual" type="button">Skontrolovať lístok</button>
+<div id="scanResult" class="result" aria-live="polite">Čakám na skenovanie vstupenky…</div>
+</section>
+
+<section class="panel">
 <h2>🎬 Pridať alebo upraviť film</h2>
 <form id="filmForm">
 <input type="hidden" id="filmId">
@@ -83,6 +101,7 @@ Administrácia je bez prihlasovania. Verejné zapisovanie do databázy znamená,
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyDt72e7uxTcvoC-JEtF-QWN3hIjrQ6KuPc",
@@ -108,14 +127,16 @@ const status = message => $("status").textContent = message;
 
 $("filmForm").addEventListener("submit", async event => {
   event.preventDefault();
+
   const id = $("filmId").value;
   const film = {
-    title: $("title").value.trim(),
-    description: $("description").value.trim(),
-    image: $("image").value.trim(),
-    date: $("date").value,
-    time: $("time").value
+    title:$("title").value.trim(),
+    description:$("description").value.trim(),
+    image:$("image").value.trim(),
+    date:$("date").value,
+    time:$("time").value
   };
+
   if (!film.title) return;
 
   try {
@@ -172,11 +193,12 @@ $("filmList").addEventListener("click", async event => {
       await filmsRef.child(deleteId).remove();
       status("Film bol vymazaný.");
     } catch (error) {
-      status("Chyba pri mazaní: " + error.message);
+      status("Chyba pri mazaní filmu: " + error.message);
     }
   }
 });
 
+// Rezervácie a stav použitia
 ticketsRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {})
     .sort((a,b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
@@ -186,8 +208,8 @@ ticketsRef.on("value", snapshot => {
       <strong>${escapeHtml(t.filmTitle || "Film")}</strong>
       <div class="muted">
         Kód: ${escapeHtml(t.code || "")}<br>
-        Počet lístkov: ${Number(t.count) || 0} · Cena: 0 €<br>
-        ${t.createdAt ? escapeHtml(new Date(t.createdAt).toLocaleString("sk-SK")) : ""}
+        Počet: ${Number(t.count) || 0} · Cena: 0 €<br>
+        Stav: <span class="ticket-status">${t.used ? "POUŽITÁ" : "NEPOUŽITÁ"}</span>
       </div>
       <button class="danger" type="button" data-ticket-delete="${escapeHtml(id)}">Odstrániť rezerváciu</button>
     </div>
@@ -206,13 +228,150 @@ $("ticketList").addEventListener("click", async event => {
   }
 });
 
+// Kontrola kódu a bezpečné označenie rezervácie ako použitej
+async function checkTicket(rawCode) {
+  const code = String(rawCode || "").trim().toUpperCase();
+  const result = $("scanResult");
+
+  if (!code) {
+    result.className = "result bad";
+    result.textContent = "Zadaj alebo naskenuj kód vstupenky.";
+    return;
+  }
+
+  result.className = "result";
+  result.textContent = "Kontrolujem vstupenku…";
+
+  try {
+    const query = ticketsRef.orderByChild("code").equalTo(code);
+    const snapshot = await query.once("value");
+
+    if (!snapshot.exists()) {
+      result.className = "result bad";
+      result.textContent = "❌ NEPLATNÝ LÍSTOK – takýto kód sa nenašiel.";
+      return;
+    }
+
+    const matches = Object.entries(snapshot.val());
+    if (matches.length !== 1) {
+      result.className = "result bad";
+      result.textContent = "❌ Chyba: kód nie je jednoznačný. Obráť sa na správcu.";
+      return;
+    }
+
+    const [id] = matches[0];
+    const ticketRef = ticketsRef.child(id);
+    let outcome = "error";
+
+    await ticketRef.transaction(current => {
+      if (!current || current.code !== code) return;
+      if (current.used === true) {
+        outcome = "already";
+        return;
+      }
+      current.used = true;
+      current.usedAt = Date.now();
+      outcome = "accepted";
+      return current;
+    });
+
+    const latest = await ticketRef.once("value");
+    const ticket = latest.val();
+
+    if (outcome === "accepted" && ticket && ticket.used === true) {
+      result.className = "result good";
+      result.innerHTML = `
+        <strong>✅ LÍSTOK PLATNÝ – VSTUP POVOLENÝ</strong><br>
+        Film: ${escapeHtml(ticket.filmTitle)}<br>
+        Počet lístkov: ${Number(ticket.count) || 0}<br>
+        Kód: ${escapeHtml(ticket.code)}<br>
+        Stav: POUŽITÁ
+      `;
+    } else if (outcome === "already" || (ticket && ticket.used === true)) {
+      result.className = "result bad";
+      result.innerHTML = `
+        <strong>⛔ TENTO LÍSTOK UŽ BOL POUŽITÝ</strong><br>
+        Film: ${escapeHtml(ticket.filmTitle)}<br>
+        Kód: ${escapeHtml(ticket.code)}<br>
+        ${ticket.usedAt ? "Použitý: " + escapeHtml(new Date(ticket.usedAt).toLocaleString("sk-SK")) : ""}
+      `;
+    } else {
+      result.className = "result bad";
+      result.textContent = "❌ Lístok sa nepodarilo overiť. Skús to znova.";
+    }
+  } catch (error) {
+    result.className = "result bad";
+    result.textContent = "Chyba pri kontrole: " + error.message;
+  }
+}
+
+$("checkManual").onclick = () => checkTicket($("manualCode").value);
+$("manualCode").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    checkTicket($("manualCode").value);
+  }
+});
+
+// Kamera a čítačka čiarových kódov
+let scanner = null;
+let scannerRunning = false;
+let lastScannedCode = "";
+let lastScannedAt = 0;
+
+$("startScanner").onclick = async () => {
+  if (scannerRunning) return;
+
+  try {
+    if (!scanner) scanner = new Html5Qrcode("scanner");
+
+    await scanner.start(
+      {facingMode:"environment"},
+      {fps:10,qrbox:{width:280,height:130},formatsToSupport:[
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8
+      ]},
+      decodedText => {
+        const now = Date.now();
+        if (decodedText === lastScannedCode && now - lastScannedAt < 3000) return;
+        lastScannedCode = decodedText;
+        lastScannedAt = now;
+        $("manualCode").value = decodedText;
+        checkTicket(decodedText);
+      },
+      () => {}
+    );
+
+    scannerRunning = true;
+    status("Kamera je zapnutá.");
+  } catch (error) {
+    $("scanResult").className = "result bad";
+    $("scanResult").textContent = "Kameru sa nepodarilo spustiť: " + error.message +
+      ". Skontroluj povolenie kamery a HTTPS.";
+  }
+};
+
+$("stopScanner").onclick = async () => {
+  if (!scanner || !scannerRunning) return;
+  try {
+    await scanner.stop();
+    scannerRunning = false;
+    status("Kamera bola zastavená.");
+  } catch (error) {
+    status("Chyba pri zastavení kamery: " + error.message);
+  }
+};
+
+// Oznamy
 $("noticeForm").addEventListener("submit", async event => {
   event.preventDefault();
   const text = $("noticeText").value.trim();
   if (!text) return;
 
   try {
-    await noticesRef.push({text, createdAt: Date.now()});
+    await noticesRef.push({text,createdAt:Date.now()});
     $("noticeForm").reset();
     status("Oznam bol pridaný.");
   } catch (error) {
