@@ -30,7 +30,6 @@ button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:poin
 .result{padding:15px;border-radius:9px;margin-top:15px;background:#292941;line-height:1.6}
 .good{border:1px solid #38a169;color:#a7f3c2}
 .bad{border:1px solid #c44;color:#ffb5b5}
-.ticket-status{font-weight:bold}
 </style>
 </head>
 <body>
@@ -41,12 +40,12 @@ button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:poin
 
 <main>
 <div class="warning">
-Administrácia je bez prihlasovania. Každý, kto má prístup k tejto stránke a databáze, môže meniť jej obsah. Nepoužívaj verejné pravidlá na skutočnú prevádzku.
+Administrácia je bez prihlasovania. Verejný zápis do databázy umožňuje aj iným ľuďom meniť filmy a rezervácie. Na skutočnú prevádzku použi zabezpečený administrátorský prístup.
 </div>
 
 <section class="panel" style="margin-top:22px">
 <h2>📷 Skenovanie vstupeniek</h2>
-<p class="muted">Namier kameru na čiarový kód vstupenky. Systém skontroluje rezerváciu a označí ju ako použitú.</p>
+<p class="muted">Namier kameru na čiarový kód. Platná rezervácia sa označí ako použitá. Pri opakovanom skenovaní sa zobrazí upozornenie.</p>
 <div id="scanner"></div>
 <button class="primary" id="startScanner" type="button">Spustiť kameru</button>
 <button class="edit" id="stopScanner" type="button">Zastaviť kameru</button>
@@ -61,23 +60,34 @@ Administrácia je bez prihlasovania. Každý, kto má prístup k tejto stránke 
 <h2>🎬 Pridať alebo upraviť film</h2>
 <form id="filmForm">
 <input type="hidden" id="filmId">
+
 <label for="title">Názov filmu *</label>
 <input id="title" required maxlength="100">
+
 <label for="description">Popis</label>
 <textarea id="description" maxlength="500"></textarea>
+
 <label for="image">URL obrázka/plagátu</label>
 <input id="image" type="url" placeholder="https://...">
+
 <label for="date">Dátum premietania</label>
 <input id="date" type="date">
+
 <label for="time">Čas premietania</label>
 <input id="time" type="time">
+
+<label for="capacity">Maximálna kapacita miest *</label>
+<input id="capacity" type="number" min="1" max="100000" required placeholder="Napr. 10">
+
+<p class="muted">Kapacita určuje maximálny počet rezervovaných lístkov. Po dosiahnutí limitu sa film označí ako VYPREDANÉ.</p>
+
 <button class="primary" type="submit">Uložiť film</button>
 <button class="edit" type="button" id="clearFilm">Vyčistiť formulár</button>
 </form>
 </section>
 
 <section class="panel">
-<h2>📋 Existujúce filmy</h2>
+<h2>📋 Existujúce filmy a kapacita</h2>
 <div id="filmList" class="muted">Načítavam…</div>
 </section>
 
@@ -102,6 +112,7 @@ Administrácia je bez prihlasovania. Každý, kto má prístup k tejto stránke 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyDt72e7uxTcvoC-JEtF-QWN3hIjrQ6KuPc",
@@ -125,26 +136,55 @@ const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c =>
 );
 const status = message => $("status").textContent = message;
 
+// Pridanie a úprava filmu vrátane kapacity
 $("filmForm").addEventListener("submit", async event => {
   event.preventDefault();
 
   const id = $("filmId").value;
+  const capacity = Number($("capacity").value);
+
+  if (!Number.isInteger(capacity) || capacity < 1 || capacity > 100000) {
+    status("Zadaj platnú kapacitu od 1 do 100 000.");
+    return;
+  }
+
   const film = {
     title:$("title").value.trim(),
     description:$("description").value.trim(),
     image:$("image").value.trim(),
     date:$("date").value,
-    time:$("time").value
+    time:$("time").value,
+    capacity
   };
 
   if (!film.title) return;
 
   try {
-    if (id) await filmsRef.child(id).update(film);
-    else await filmsRef.push(film);
+    if (id) {
+      const ref = filmsRef.child(id);
+      const snap = await ref.get();
+      const existing = snap.val();
+      if (!existing) {
+        status("Film už neexistuje.");
+        return;
+      }
+
+      const soldCount = Number(existing.soldCount || 0);
+      if (capacity < soldCount) {
+        status("Kapacita nemôže byť nižšia ako už rezervovaný počet lístkov (" + soldCount + ").");
+        return;
+      }
+
+      film.soldCount = soldCount;
+      await ref.update(film);
+    } else {
+      film.soldCount = 0;
+      await filmsRef.push(film);
+    }
+
     $("filmForm").reset();
     $("filmId").value = "";
-    status("Film bol uložený.");
+    status("Film a jeho kapacita boli uložené.");
   } catch (error) {
     status("Chyba pri ukladaní filmu: " + error.message);
   }
@@ -155,16 +195,32 @@ $("clearFilm").onclick = () => {
   $("filmId").value = "";
 };
 
+// Zoznam filmov
 filmsRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {});
-  $("filmList").innerHTML = entries.length ? entries.map(([id,f]) => `
-    <div class="item">
-      <strong>${escapeHtml(f.title)}</strong>
-      <div class="muted">${escapeHtml(f.date || "")} ${escapeHtml(f.time || "")}<br>${escapeHtml(f.description || "")}</div>
-      <button class="edit" type="button" data-edit="${escapeHtml(id)}">Upraviť</button>
-      <button class="danger" type="button" data-delete="${escapeHtml(id)}">Vymazať</button>
-    </div>
-  `).join("") : "Zatiaľ nie sú pridané žiadne filmy.";
+
+  $("filmList").innerHTML = entries.length ? entries.map(([id,f]) => {
+    const capacity = Number(f.capacity || 0);
+    const sold = Number(f.soldCount || 0);
+    const remaining = Math.max(0,capacity-sold);
+    const soldOut = capacity > 0 && remaining === 0;
+
+    return `
+      <div class="item">
+        <strong>${escapeHtml(f.title)}</strong>
+        <div class="muted">
+          ${escapeHtml(f.date || "")} ${escapeHtml(f.time || "")}<br>
+          ${escapeHtml(f.description || "")}<br>
+          Kapacita: ${capacity || "Nenastavená"}<br>
+          Rezervované: ${sold}<br>
+          Voľné miesta: ${capacity ? remaining : "—"}<br>
+          Stav: <strong>${soldOut ? "VYPREDANÉ" : "V PREDAJI"}</strong>
+        </div>
+        <button class="edit" type="button" data-edit="${escapeHtml(id)}">Upraviť</button>
+        <button class="danger" type="button" data-delete="${escapeHtml(id)}">Vymazať</button>
+      </div>
+    `;
+  }).join("") : "Zatiaľ nie sú pridané žiadne filmy.";
 }, error => status("Chyba načítania filmov: " + error.message));
 
 $("filmList").addEventListener("click", async event => {
@@ -176,12 +232,14 @@ $("filmList").addEventListener("click", async event => {
       const snap = await filmsRef.child(editId).get();
       const f = snap.val();
       if (!f) return;
+
       $("filmId").value = editId;
       $("title").value = f.title || "";
       $("description").value = f.description || "";
       $("image").value = f.image || "";
       $("date").value = f.date || "";
       $("time").value = f.time || "";
+      $("capacity").value = f.capacity || "";
       window.scrollTo({top:0,behavior:"smooth"});
     } catch (error) {
       status(error.message);
@@ -191,14 +249,14 @@ $("filmList").addEventListener("click", async event => {
   if (deleteId && confirm("Naozaj chceš vymazať tento film?")) {
     try {
       await filmsRef.child(deleteId).remove();
-      status("Film bol vymazaný.");
+      status("Film bol vymazaný. Existujúce rezervácie zostávajú v databáze.");
     } catch (error) {
       status("Chyba pri mazaní filmu: " + error.message);
     }
   }
 });
 
-// Rezervácie a stav použitia
+// Rezervácie
 ticketsRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {})
     .sort((a,b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
@@ -207,9 +265,11 @@ ticketsRef.on("value", snapshot => {
     <div class="item">
       <strong>${escapeHtml(t.filmTitle || "Film")}</strong>
       <div class="muted">
+        Meno: ${escapeHtml(t.customerName || "Neuvedené")}<br>
         Kód: ${escapeHtml(t.code || "")}<br>
-        Počet: ${Number(t.count) || 0} · Cena: 0 €<br>
-        Stav: <span class="ticket-status">${t.used ? "POUŽITÁ" : "NEPOUŽITÁ"}</span>
+        Počet lístkov: ${Number(t.count) || 0} · Cena: 0 €<br>
+        Stav: <strong>${t.used ? "POUŽITÁ" : "NEPOUŽITÁ"}</strong><br>
+        ${t.createdAt ? escapeHtml(new Date(t.createdAt).toLocaleString("sk-SK")) : ""}
       </div>
       <button class="danger" type="button" data-ticket-delete="${escapeHtml(id)}">Odstrániť rezerváciu</button>
     </div>
@@ -220,6 +280,15 @@ $("ticketList").addEventListener("click", async event => {
   const id = event.target.dataset.ticketDelete;
   if (id && confirm("Odstrániť rezerváciu?")) {
     try {
+      const ticketSnap = await ticketsRef.child(id).get();
+      const ticket = ticketSnap.val();
+
+      if (ticket && ticket.filmId && Number(ticket.count) > 0 && ticket.used !== true) {
+        await filmsRef.child(ticket.filmId).child("soldCount").transaction(current =>
+          Math.max(0, Number(current || 0) - Number(ticket.count))
+        );
+      }
+
       await ticketsRef.child(id).remove();
       status("Rezervácia bola odstránená.");
     } catch (error) {
@@ -228,7 +297,7 @@ $("ticketList").addEventListener("click", async event => {
   }
 });
 
-// Kontrola kódu a bezpečné označenie rezervácie ako použitej
+// Kontrola a označenie vstupenky
 async function checkTicket(rawCode) {
   const code = String(rawCode || "").trim().toUpperCase();
   const result = $("scanResult");
@@ -243,19 +312,18 @@ async function checkTicket(rawCode) {
   result.textContent = "Kontrolujem vstupenku…";
 
   try {
-    const query = ticketsRef.orderByChild("code").equalTo(code);
-    const snapshot = await query.once("value");
+    const snapshot = await ticketsRef.orderByChild("code").equalTo(code).once("value");
 
     if (!snapshot.exists()) {
       result.className = "result bad";
-      result.textContent = "❌ NEPLATNÝ LÍSTOK – takýto kód sa nenašiel.";
+      result.textContent = "❌ NEPLATNÝ LÍSTOK – kód sa nenašiel.";
       return;
     }
 
     const matches = Object.entries(snapshot.val());
     if (matches.length !== 1) {
       result.className = "result bad";
-      result.textContent = "❌ Chyba: kód nie je jednoznačný. Obráť sa na správcu.";
+      result.textContent = "❌ Kód nie je jednoznačný. Obráť sa na správcu.";
       return;
     }
 
@@ -263,12 +331,8 @@ async function checkTicket(rawCode) {
     const ticketRef = ticketsRef.child(id);
     let outcome = "error";
 
-    await ticketRef.transaction(current => {
-      if (!current || current.code !== code) return;
-      if (current.used === true) {
-        outcome = "already";
-        return;
-      }
+    const transaction = await ticketRef.transaction(current => {
+      if (!current || current.code !== code || current.used === true) return;
       current.used = true;
       current.usedAt = Date.now();
       outcome = "accepted";
@@ -278,20 +342,22 @@ async function checkTicket(rawCode) {
     const latest = await ticketRef.once("value");
     const ticket = latest.val();
 
-    if (outcome === "accepted" && ticket && ticket.used === true) {
+    if (transaction.committed && outcome === "accepted") {
       result.className = "result good";
       result.innerHTML = `
         <strong>✅ LÍSTOK PLATNÝ – VSTUP POVOLENÝ</strong><br>
         Film: ${escapeHtml(ticket.filmTitle)}<br>
+        Meno: ${escapeHtml(ticket.customerName || "Neuvedené")}<br>
         Počet lístkov: ${Number(ticket.count) || 0}<br>
         Kód: ${escapeHtml(ticket.code)}<br>
         Stav: POUŽITÁ
       `;
-    } else if (outcome === "already" || (ticket && ticket.used === true)) {
+    } else if (ticket && ticket.used === true) {
       result.className = "result bad";
       result.innerHTML = `
         <strong>⛔ TENTO LÍSTOK UŽ BOL POUŽITÝ</strong><br>
         Film: ${escapeHtml(ticket.filmTitle)}<br>
+        Meno: ${escapeHtml(ticket.customerName || "Neuvedené")}<br>
         Kód: ${escapeHtml(ticket.code)}<br>
         ${ticket.usedAt ? "Použitý: " + escapeHtml(new Date(ticket.usedAt).toLocaleString("sk-SK")) : ""}
       `;
@@ -313,7 +379,7 @@ $("manualCode").addEventListener("keydown", event => {
   }
 });
 
-// Kamera a čítačka čiarových kódov
+// Kamera
 let scanner = null;
 let scannerRunning = false;
 let lastScannedCode = "";
@@ -327,15 +393,19 @@ $("startScanner").onclick = async () => {
 
     await scanner.start(
       {facingMode:"environment"},
-      {fps:10,qrbox:{width:280,height:130},formatsToSupport:[
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8
-      ]},
+      {
+        fps:10,
+        qrbox:{width:280,height:130},
+        formatsToSupport:[
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8
+        ]
+      },
       decodedText => {
         const now = Date.now();
-        if (decodedText === lastScannedCode && now - lastScannedAt < 3000) return;
+        if (decodedText === lastScannedCode && now-lastScannedAt < 3000) return;
         lastScannedCode = decodedText;
         lastScannedAt = now;
         $("manualCode").value = decodedText;
@@ -348,8 +418,7 @@ $("startScanner").onclick = async () => {
     status("Kamera je zapnutá.");
   } catch (error) {
     $("scanResult").className = "result bad";
-    $("scanResult").textContent = "Kameru sa nepodarilo spustiť: " + error.message +
-      ". Skontroluj povolenie kamery a HTTPS.";
+    $("scanResult").textContent = "Kameru sa nepodarilo spustiť: " + error.message + ". Skontroluj HTTPS a povolenie kamery.";
   }
 };
 
