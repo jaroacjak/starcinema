@@ -27,6 +27,8 @@ h2{color:var(--gold)}
 .notice{background:var(--panel);border-left:4px solid var(--gold);padding:16px;border-radius:8px;margin:12px 0}
 button{padding:11px 15px;background:var(--gold);color:#171717;border:0;border-radius:8px;font-weight:bold;cursor:pointer;margin:5px}
 button:disabled{opacity:.5;cursor:not-allowed}
+.sold{color:#ff7777!important;font-weight:bold;font-size:18px}
+.availability{color:#a7f3c2!important}
 dialog{max-width:480px;width:calc(100% - 30px);border:1px solid #55556c;border-radius:14px;background:var(--panel);color:white;padding:24px}
 dialog::backdrop{background:#000b}
 dialog input{width:100%;padding:11px;margin:8px 0 14px;border-radius:8px;border:1px solid #55556c;background:var(--bg);color:white}
@@ -75,8 +77,10 @@ footer{text-align:center;padding:25px;background:#080812;color:var(--muted);marg
 
 <dialog id="ticketDialog">
 <form id="ticketForm">
-<h2>🎟️ Bezplatný lístok</h2>
+<h2>🎟️ Bezplatná rezervácia</h2>
 <p id="selectedFilm"></p>
+<label for="customerName">Meno a priezvisko *</label>
+<input id="customerName" type="text" maxlength="80" required autocomplete="name" placeholder="Tvoje meno">
 <label for="ticketCount">Počet lístkov</label>
 <input id="ticketCount" type="number" min="1" max="10" value="1" required>
 <p style="color:#f6ca55;font-weight:bold">Cena spolu: 0 €</p>
@@ -116,6 +120,7 @@ const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c =>
 );
 
 let selectedFilmId = null;
+let selectedFilmData = null;
 
 filmsRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {});
@@ -126,37 +131,71 @@ filmsRef.on("value", snapshot => {
     return;
   }
 
-  container.innerHTML = entries.map(([id,film]) => `
-    <article class="film">
-      ${film.image ? `<img src="${escapeHtml(film.image)}" alt="Plagát filmu" loading="lazy">` : ""}
-      <div class="film-content">
-        <h3>${escapeHtml(film.title)}</h3>
-        <p>${escapeHtml(film.description || "")}</p>
-        ${film.date ? `<p>📅 ${escapeHtml(film.date)}</p>` : ""}
-        ${film.time ? `<p>🕒 ${escapeHtml(film.time)}</p>` : ""}
-        <button type="button" data-book="${escapeHtml(id)}">🎟️ Získať lístok – 0 €</button>
-      </div>
-    </article>
-  `).join("");
+  container.innerHTML = entries.map(([id,film]) => {
+    const capacity = Number(film.capacity);
+    const sold = Number(film.soldCount || 0);
+    const configured = Number.isInteger(capacity) && capacity > 0;
+    const remaining = configured ? Math.max(0, capacity - sold) : 0;
+    const isSoldOut = configured && remaining <= 0;
+
+    let availability = !configured
+      ? "Kapacita zatiaľ nie je nastavená."
+      : isSoldOut
+        ? "VYPREDANÉ"
+        : "Voľné miesta: " + remaining + " / " + capacity;
+
+    return `
+      <article class="film">
+        ${film.image ? `<img src="${escapeHtml(film.image)}" alt="Plagát filmu" loading="lazy">` : ""}
+        <div class="film-content">
+          <h3>${escapeHtml(film.title)}</h3>
+          <p>${escapeHtml(film.description || "")}</p>
+          ${film.date ? `<p>📅 ${escapeHtml(film.date)}</p>` : ""}
+          ${film.time ? `<p>🕒 ${escapeHtml(film.time)}</p>` : ""}
+          <p class="${isSoldOut ? "sold" : "availability"}">${escapeHtml(availability)}</p>
+          <button type="button" data-book="${escapeHtml(id)}" ${(!configured || isSoldOut) ? "disabled" : ""}>
+            ${isSoldOut ? "VYPREDANÉ" : "🎟️ Získať lístok – 0 €"}
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
 }, error => {
   document.getElementById("films").textContent = "Chyba načítania filmov: " + error.message;
 });
 
 const dialog = document.getElementById("ticketDialog");
 
-document.getElementById("films").addEventListener("click", event => {
+document.getElementById("films").addEventListener("click", async event => {
   const button = event.target.closest("[data-book]");
   if (!button) return;
 
   selectedFilmId = button.dataset.book;
-  const article = button.closest(".film");
-  document.getElementById("selectedFilm").textContent =
-    "Film: " + article.querySelector("h3").textContent;
-  document.getElementById("ticketCount").value = 1;
-  document.getElementById("ticketMessage").textContent = "";
-  document.getElementById("ticketResult").innerHTML = "";
-  document.getElementById("reserveButton").disabled = false;
-  dialog.showModal();
+
+  try {
+    const snap = await filmsRef.child(selectedFilmId).get();
+    if (!snap.exists()) return;
+    selectedFilmData = snap.val();
+
+    const capacity = Number(selectedFilmData.capacity);
+    const remaining = capacity - Number(selectedFilmData.soldCount || 0);
+    if (!Number.isInteger(capacity) || remaining <= 0) {
+      alert("Tento film je už vypredaný.");
+      return;
+    }
+
+    document.getElementById("selectedFilm").textContent =
+      "Film: " + selectedFilmData.title + " · Voľné miesta: " + remaining;
+    document.getElementById("ticketCount").value = 1;
+    document.getElementById("ticketCount").max = Math.min(10, remaining);
+    document.getElementById("customerName").value = "";
+    document.getElementById("ticketMessage").textContent = "";
+    document.getElementById("ticketResult").innerHTML = "";
+    document.getElementById("reserveButton").disabled = false;
+    dialog.showModal();
+  } catch (error) {
+    alert("Chyba: " + error.message);
+  }
 });
 
 document.getElementById("closeTicket").onclick = () => dialog.close();
@@ -168,6 +207,7 @@ function createTicketCard(ticket) {
       <h2>⭐ STAR CINEMA ⭐</h2>
       <p><strong>VSTUPENKA DO KINA</strong></p>
       <p id="ticketFilm"></p>
+      <p id="ticketName"></p>
       <p id="ticketCountText"></p>
       <p><strong>Cena: 0 €</strong></p>
       <canvas id="barcodeCanvas"></canvas>
@@ -182,24 +222,40 @@ function createTicketCard(ticket) {
   `;
 
   document.getElementById("ticketFilm").textContent = "Film: " + ticket.filmTitle;
+  document.getElementById("ticketName").textContent = "Meno: " + ticket.customerName;
   document.getElementById("ticketCountText").textContent = "Počet lístkov: " + ticket.count;
   document.getElementById("ticketCodeText").textContent = ticket.code;
 
   const canvas = document.getElementById("barcodeCanvas");
   JsBarcode(canvas, ticket.code, {
-    format:"CODE128",
-    width:2,
-    height:75,
-    displayValue:false,
-    margin:10,
-    background:"#ffffff",
-    lineColor:"#000000"
+    format:"CODE128",width:2,height:75,displayValue:false,margin:10,
+    background:"#ffffff",lineColor:"#000000"
   });
 
   document.getElementById("downloadPng").onclick = () => {
+    const ticketCanvas = document.createElement("canvas");
+    const ctx = ticketCanvas.getContext("2d");
+    ticketCanvas.width = 900;
+    ticketCanvas.height = 650;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,0,900,650);
+    ctx.fillStyle = "#111";
+    ctx.textAlign = "center";
+    ctx.font = "bold 42px Arial";
+    ctx.fillText("STAR CINEMA",450,75);
+    ctx.font = "bold 28px Arial";
+    ctx.fillText("VSTUPENKA DO KINA",450,130);
+    ctx.font = "24px Arial";
+    ctx.fillText("Film: " + ticket.filmTitle,450,195);
+    ctx.fillText("Meno: " + ticket.customerName,450,245);
+    ctx.fillText("Počet lístkov: " + ticket.count,450,295);
+    ctx.fillText("Cena: 0 €",450,345);
+    ctx.drawImage(canvas,130,380,640,130);
+    ctx.font = "bold 25px Arial";
+    ctx.fillText(ticket.code,450,550);
     const link = document.createElement("a");
     link.download = "Star-Cinema-" + ticket.code + ".png";
-    link.href = document.getElementById("printTicket").querySelector("canvas").toDataURL("image/png");
+    link.href = ticketCanvas.toDataURL("image/png");
     link.click();
   };
 
@@ -207,24 +263,24 @@ function createTicketCard(ticket) {
     const {jsPDF} = window.jspdf;
     const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a5"});
     pdf.setFontSize(20);
-    pdf.text("STAR CINEMA", 74, 22, {align:"center"});
+    pdf.text("STAR CINEMA",74,22,{align:"center"});
     pdf.setFontSize(15);
-    pdf.text("VSTUPENKA DO KINA", 74, 34, {align:"center"});
+    pdf.text("VSTUPENKA DO KINA",74,34,{align:"center"});
+    pdf.setFontSize(11);
+    pdf.text("Film: " + ticket.filmTitle,15,50);
+    pdf.text("Meno: " + ticket.customerName,15,60);
+    pdf.text("Pocet listkov: " + ticket.count,15,70);
+    pdf.text("Cena: 0 EUR",15,80);
+    pdf.addImage(canvas.toDataURL("image/png"),"PNG",15,90,118,35);
     pdf.setFontSize(12);
-    pdf.text("Film: " + ticket.filmTitle, 15, 50);
-    pdf.text("Pocet listkov: " + ticket.count, 15, 60);
-    pdf.text("Cena: 0 EUR", 15, 70);
-    const img = canvas.toDataURL("image/png");
-    pdf.addImage(img,"PNG",15,82,118,35);
-    pdf.setFontSize(12);
-    pdf.text("Kod: " + ticket.code, 74, 128, {align:"center"});
+    pdf.text("Kod: " + ticket.code,74,135,{align:"center"});
     pdf.setFontSize(9);
-    pdf.text("Predlozte pri vstupe do kina.",74,140,{align:"center"});
+    pdf.text("Predlozte pri vstupe do kina.",74,145,{align:"center"});
     pdf.save("Star-Cinema-" + ticket.code + ".pdf");
   };
 
   document.getElementById("printTicketButton").onclick = () => {
-    const ticketHtml = document.getElementById("printTicket").outerHTML;
+    const printCanvas = document.getElementById("barcodeCanvas").toDataURL("image/png");
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       alert("Povoľ vyskakovacie okná, aby sa dala vstupenka vytlačiť.");
@@ -233,14 +289,15 @@ function createTicketCard(ticket) {
     printWindow.document.write(`
       <!DOCTYPE html><html lang="sk"><head><meta charset="UTF-8">
       <title>Vstupenka Star Cinema</title>
-      <style>
-      body{font-family:Arial;text-align:center;padding:25px}
-      .ticket{border:2px dashed #333;padding:25px;max-width:450px;margin:auto}
-      canvas{max-width:100%}
-      </style></head><body>${ticketHtml}
-      <script>
-      window.onload=function(){window.print()}
-      <\/script></body></html>
+      <style>body{font-family:Arial;text-align:center;padding:25px}.ticket{border:2px dashed #333;padding:25px;max-width:450px;margin:auto}img{max-width:100%}</style>
+      </head><body><div class="ticket">
+      <h2>STAR CINEMA</h2><h3>VSTUPENKA DO KINA</h3>
+      <p>Film: ${escapeHtml(ticket.filmTitle)}</p>
+      <p>Meno: ${escapeHtml(ticket.customerName)}</p>
+      <p>Počet lístkov: ${ticket.count}</p><p>Cena: 0 €</p>
+      <img src="${printCanvas}"><p>${escapeHtml(ticket.code)}</p>
+      <p>Predlož pri vstupe do kina.</p></div>
+      <script>window.onload=function(){window.print()}<\/script></body></html>
     `);
     printWindow.document.close();
   };
@@ -250,26 +307,48 @@ document.getElementById("ticketForm").addEventListener("submit", async event => 
   event.preventDefault();
 
   const count = Number(document.getElementById("ticketCount").value);
+  const customerName = document.getElementById("customerName").value.trim();
   const message = document.getElementById("ticketMessage");
   const reserveButton = document.getElementById("reserveButton");
 
+  if (!customerName || customerName.length > 80) {
+    message.textContent = "Zadaj svoje meno (maximálne 80 znakov).";
+    return;
+  }
   if (!selectedFilmId || !Number.isInteger(count) || count < 1 || count > 10) {
     message.textContent = "Zadaj počet lístkov od 1 do 10.";
     return;
   }
 
   reserveButton.disabled = true;
-  message.textContent = "Spracovávam rezerváciu…";
+  message.textContent = "Overujem voľné miesta…";
+
+  const filmRef = filmsRef.child(selectedFilmId);
+  let result = "error";
 
   try {
-    const filmSnapshot = await filmsRef.child(selectedFilmId).get();
-    if (!filmSnapshot.exists()) {
-      message.textContent = "Tento film už nie je dostupný.";
+    const transaction = await filmRef.transaction(film => {
+      if (!film) return;
+      const capacity = Number(film.capacity);
+      const sold = Number(film.soldCount || 0);
+      if (!Number.isInteger(capacity) || capacity < 1 || sold + count > capacity) {
+        result = "full";
+        return;
+      }
+      film.soldCount = sold + count;
+      result = "reserved";
+      return film;
+    });
+
+    if (!transaction.committed || result !== "reserved") {
+      message.textContent = result === "full"
+        ? "VYPREDANÉ alebo už nie je dostatok voľných miest."
+        : "Rezerváciu sa nepodarilo potvrdiť. Skús to znova.";
       reserveButton.disabled = false;
       return;
     }
 
-    const film = filmSnapshot.val();
+    const film = transaction.snapshot.val();
     const ticketRef = db.ref("starCinema/tickets").push();
     const code = "SC-" + ticketRef.key.slice(-10).toUpperCase();
 
@@ -277,13 +356,22 @@ document.getElementById("ticketForm").addEventListener("submit", async event => 
       code,
       filmId:selectedFilmId,
       filmTitle:film.title || "Film",
+      customerName,
       count,
       price:0,
       createdAt:Date.now(),
       used:false
     };
 
-    await ticketRef.set(ticket);
+    try {
+      await ticketRef.set(ticket);
+    } catch (saveError) {
+      await filmRef.child("soldCount").transaction(sold =>
+        Math.max(0, Number(sold || 0) - count)
+      );
+      throw saveError;
+    }
+
     message.textContent = "Rezervácia potvrdená! Vstupenku si môžeš uložiť.";
     createTicketCard(ticket);
   } catch (error) {
