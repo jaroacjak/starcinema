@@ -1,0 +1,324 @@
+
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STAR CINEMA – Admin</title>
+<style>
+:root{--gold:#f6ca55}
+*{box-sizing:border-box}
+body{margin:0;background:#101020;color:white;font-family:Arial,sans-serif}
+header{background:#080812;padding:22px;color:var(--gold);font-size:25px;font-weight:bold}
+main{max-width:950px;margin:25px auto;padding:15px}
+.panel{background:#202039;padding:22px;border-radius:13px;margin-bottom:22px}
+h2{color:var(--gold)}
+label{display:block;margin-top:13px}
+input,textarea{width:100%;padding:12px;margin-top:7px;background:#101020;border:1px solid #555;color:white;border-radius:7px}
+textarea{min-height:80px}
+button{padding:11px 15px;border:0;border-radius:7px;margin:9px 5px 0 0;cursor:pointer;font-weight:bold}
+.primary{background:var(--gold);color:#111}
+.secondary{background:#44446a;color:white}
+.danger{background:#a93645;color:white}
+.item{padding:14px 0;border-bottom:1px solid #555}
+.muted{color:#ccc;font-size:13px}
+#status{color:var(--gold);font-weight:bold}
+.warning{background:#49341b;color:#ffe1a3;padding:15px;border-radius:9px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<header>⭐ STAR CINEMA – ADMIN PANEL</header>
+
+<main>
+
+<div class="warning">
+  Upozornenie: Táto administrácia nemá prihlasovanie.
+  Pri verejne dostupnom webe môže obsah meniť aj iná osoba.
+  Nepoužívaj verejný zápis do databázy na ostrej stránke.
+</div>
+
+<section class="panel">
+<h2>🌐 Úprava webovej stránky</h2>
+
+<label>Názov hlavnej stránky</label>
+<input id="webTitle" placeholder="Vitajte v Star Cinema!">
+
+<label>Podnadpis</label>
+<input id="webSubtitle" placeholder="Vaše rodinné kino">
+
+<label>Text O nás</label>
+<textarea id="webAbout"></textarea>
+
+<label>Farba nadpisov (HEX)</label>
+<input id="webGold" type="color" value="#f6ca55">
+
+<label>Pozadie úvodnej časti (CSS)</label>
+<input id="webBackground" value="linear-gradient(130deg,#39254e,#15152c)">
+
+<button class="secondary" id="saveDraft">Uložiť koncept</button>
+<button class="primary" id="publish">🚀 PUBLIKOVAŤ NA WEBE</button>
+<p class="muted">Koncept sa nezobrazí návštevníkom. Až publikovanie aktualizuje hlavnú stránku.</p>
+</section>
+
+<section class="panel">
+<h2>🎬 Pridať alebo upraviť film</h2>
+
+<form id="filmForm">
+<input type="hidden" id="filmId">
+
+<label>Názov filmu *</label>
+<input id="filmTitle" required maxlength="100">
+
+<label>Popis filmu</label>
+<textarea id="filmDescription"></textarea>
+
+<label>URL plagátu</label>
+<input id="filmImage" type="url" placeholder="https://...">
+
+<label>Dátum premietania</label>
+<input id="filmDate" type="date">
+
+<label>Čas premietania</label>
+<input id="filmTime" type="time">
+
+<button class="primary">Uložiť film</button>
+<button type="button" class="secondary" id="clearFilm">Vyčistiť</button>
+</form>
+</section>
+
+<section class="panel">
+<h2>📋 Filmy v kine</h2>
+<div id="filmList">Načítavam...</div>
+</section>
+
+<section class="panel">
+<h2>📢 Správa oznamov</h2>
+<form id="noticeForm">
+<label>Text oznamu</label>
+<textarea id="noticeText" required></textarea>
+<button class="primary">Pridať oznam</button>
+</form>
+<div id="noticeList"></div>
+</section>
+
+<section class="panel">
+<h2>🎟️ Rezervácie lístkov</h2>
+<div id="ticketList">Načítavam...</div>
+</section>
+
+<p id="status"></p>
+
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDt72e7uxTcvoC-JEtF-QWN3hIjrQ6KuPc",
+  authDomain: "starcinema-736ca.firebaseapp.com",
+  databaseURL: "DOPLN_REALTIME_DATABASE_URL",
+  projectId: "starcinema-736ca",
+  storageBucket: "starcinema-736ca.firebasestorage.app",
+  messagingSenderId: "663535518233",
+  appId: "1:663535518233:web:81998faf65206dd38f6088"
+};
+
+const statusBox=document.getElementById("status");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+
+if(firebaseConfig.databaseURL==="DOPLN_REALTIME_DATABASE_URL"){
+  statusBox.textContent="Doplň Firebase Realtime Database URL.";
+}else{
+  firebase.initializeApp(firebaseConfig);
+  const db=firebase.database();
+
+  const draftRef=db.ref("starCinema/draft");
+  const publishedRef=db.ref("starCinema/published");
+  const filmsRef=db.ref("starCinema/films");
+  const noticesRef=db.ref("starCinema/notices");
+  const ticketsRef=db.ref("starCinema/tickets");
+
+  function getSettings(){
+    return {
+      title:document.getElementById("webTitle").value.trim(),
+      subtitle:document.getElementById("webSubtitle").value.trim(),
+      about:document.getElementById("webAbout").value.trim(),
+      gold:document.getElementById("webGold").value,
+      background:document.getElementById("webBackground").value.trim()
+    };
+  }
+
+  function setSettings(s){
+    document.getElementById("webTitle").value=s.title||"";
+    document.getElementById("webSubtitle").value=s.subtitle||"";
+    document.getElementById("webAbout").value=s.about||"";
+    document.getElementById("webGold").value=s.gold||"#f6ca55";
+    document.getElementById("webBackground").value=
+      s.background||"linear-gradient(130deg,#39254e,#15152c)";
+  }
+
+  // Načítanie konceptu alebo aktuálne publikovaného webu
+  draftRef.get().then(snap=>{
+    if(snap.exists())setSettings(snap.val());
+    else publishedRef.get().then(pub=>{
+      if(pub.exists())setSettings(pub.val());
+    });
+  });
+
+  // Uloženie konceptu
+  document.getElementById("saveDraft").onclick=async()=>{
+    try{
+      await draftRef.set(getSettings());
+      statusBox.textContent="Koncept bol uložený.";
+    }catch(e){
+      statusBox.textContent="Chyba: "+e.message;
+    }
+  };
+
+  // Publikovanie
+  document.getElementById("publish").onclick=async()=>{
+    if(!confirm("Naozaj chceš zverejniť zmeny na hlavnej stránke?"))return;
+    try{
+      const settings=getSettings();
+      await publishedRef.set(settings);
+      await draftRef.set(settings);
+      statusBox.textContent="⭐ Web bol úspešne publikovaný!";
+    }catch(e){
+      statusBox.textContent="Publikovanie sa nepodarilo: "+e.message;
+    }
+  };
+
+  // Pridanie a úprava filmu
+  document.getElementById("filmForm").onsubmit=async e=>{
+    e.preventDefault();
+    const id=document.getElementById("filmId").value;
+    const film={
+      title:document.getElementById("filmTitle").value.trim(),
+      description:document.getElementById("filmDescription").value.trim(),
+      image:document.getElementById("filmImage").value.trim(),
+      date:document.getElementById("filmDate").value,
+      time:document.getElementById("filmTime").value
+    };
+    try{
+      if(id)await filmsRef.child(id).update(film);
+      else await filmsRef.push(film);
+      statusBox.textContent="Film bol uložený.";
+      clearFilm();
+    }catch(e){
+      statusBox.textContent="Chyba: "+e.message;
+    }
+  };
+
+  function clearFilm(){
+    document.getElementById("filmForm").reset();
+    document.getElementById("filmId").value="";
+  }
+
+  document.getElementById("clearFilm").onclick=clearFilm;
+
+  // Zoznam filmov
+  filmsRef.on("value",snap=>{
+    const films=snap.val()||{};
+    const entries=Object.entries(films);
+    document.getElementById("filmList").innerHTML=entries.length
+      ?entries.map(([id,f])=>`
+        <div class="item">
+          <strong>${esc(f.title)}</strong>
+          <p class="muted">${esc(f.date||"")} ${esc(f.time||"")}</p>
+          <button class="secondary" data-edit="${esc(id)}">Upraviť</button>
+          <button class="danger" data-delete="${esc(id)}">Vymazať</button>
+        </div>`).join("")
+      :"Zatiaľ žiadne filmy.";
+  });
+
+  document.getElementById("filmList").onclick=async e=>{
+    const edit=e.target.dataset.edit;
+    const del=e.target.dataset.delete;
+
+    if(edit){
+      const snap=await filmsRef.child(edit).get();
+      const f=snap.val();
+      if(!f)return;
+      document.getElementById("filmId").value=edit;
+      document.getElementById("filmTitle").value=f.title||"";
+      document.getElementById("filmDescription").value=f.description||"";
+      document.getElementById("filmImage").value=f.image||"";
+      document.getElementById("filmDate").value=f.date||"";
+      document.getElementById("filmTime").value=f.time||"";
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    if(del&&confirm("Vymazať film?")){
+      try{
+        await filmsRef.child(del).remove();
+        statusBox.textContent="Film bol vymazaný.";
+      }catch(e){statusBox.textContent=e.message;}
+    }
+  };
+
+  // Oznamy
+  document.getElementById("noticeForm").onsubmit=async e=>{
+    e.preventDefault();
+    const text=document.getElementById("noticeText").value.trim();
+    if(!text)return;
+    try{
+      await noticesRef.push({text});
+      document.getElementById("noticeForm").reset();
+      statusBox.textContent="Oznam bol pridaný.";
+    }catch(e){statusBox.textContent=e.message;}
+  };
+
+  noticesRef.on("value",snap=>{
+    const notices=snap.val()||{};
+    document.getElementById("noticeList").innerHTML=
+      Object.entries(notices).map(([id,n])=>`
+        <div class="item">
+          ${esc(n.text)}
+          <button class="danger" data-notice-delete="${esc(id)}">Vymazať</button>
+        </div>`).join("")||"Žiadne oznamy.";
+  });
+
+  document.getElementById("noticeList").onclick=async e=>{
+    const id=e.target.dataset.noticeDelete;
+    if(id&&confirm("Vymazať oznam?")){
+      await noticesRef.child(id).remove();
+    }
+  };
+
+  // Rezervácie
+  ticketsRef.on("value",snap=>{
+    const tickets=snap.val()||{};
+    const entries=Object.entries(tickets).sort(
+      (a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0)
+    );
+
+    document.getElementById("ticketList").innerHTML=entries.length
+      ?entries.map(([id,t])=>`
+        <div class="item">
+          <strong>${esc(t.filmTitle)}</strong>
+          <p class="muted">
+            Kód: ${esc(t.code)} |
+            Počet: ${Number(t.count)||0} |
+            Cena: 0 €
+          </p>
+          <button class="danger" data-ticket-delete="${esc(id)}">Odstrániť rezerváciu</button>
+        </div>`).join("")
+      :"Zatiaľ žiadne rezervácie.";
+  });
+
+  document.getElementById("ticketList").onclick=async e=>{
+    const id=e.target.dataset.ticketDelete;
+    if(id&&confirm("Odstrániť rezerváciu?")){
+      await ticketsRef.child(id).remove();
+      statusBox.textContent="Rezervácia odstránená.";
+    }
+  };
+}
+</script>
+</body>
+</html>
+  
