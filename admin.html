@@ -27,7 +27,6 @@
     .muted{color:var(--muted);font-size:14px;line-height:1.5}
     .warning{background:#3a2b16;border:1px solid #9b742a;padding:14px;border-radius:9px;color:#ffe3a0;line-height:1.5}
     #status{margin-top:12px;color:var(--gold)}
-    a{color:var(--gold)}
   </style>
 </head>
 <body>
@@ -38,75 +37,62 @@
 
 <main>
   <div class="warning">
-    <strong>Upozornenie:</strong>
-    Administrácia vyžaduje prihlásenie cez Firebase Authentication.
+    <strong>Administrácia bez prihlásenia.</strong>
+    Pri zabezpečených Firebase pravidlách nebudú zápisy fungovať bez autorizácie.
   </div>
 
-  <section class="panel" style="margin-top:22px" id="loginPanel">
-    <h2>🔐 Prihlásenie administrátora</h2>
-    <form id="loginForm">
-      <label for="email">E-mail</label>
-      <input id="email" type="email" required>
-      <label for="password">Heslo</label>
-      <input id="password" type="password" required>
-      <button class="primary" type="submit">Prihlásiť sa</button>
+  <section class="panel" style="margin-top:22px">
+    <h2>🎬 Pridať alebo upraviť film</h2>
+    <form id="filmForm">
+      <input type="hidden" id="filmId">
+      <label for="title">Názov filmu *</label>
+      <input id="title" required maxlength="100">
+
+      <label for="description">Popis</label>
+      <textarea id="description" maxlength="500"></textarea>
+
+      <label for="image">Adresa obrázka/plagátu (URL)</label>
+      <input id="image" type="url" placeholder="https://...">
+
+      <label for="date">Dátum premietania</label>
+      <input id="date" type="date">
+
+      <label for="time">Čas premietania</label>
+      <input id="time" type="time">
+
+      <button class="primary" type="submit">Uložiť film</button>
+      <button class="edit" type="button" id="clearFilm">Vyčistiť formulár</button>
     </form>
   </section>
 
-  <div id="adminContent" hidden>
-    <section class="panel">
-      <button class="danger" id="logoutButton" type="button">Odhlásiť sa</button>
-    </section>
+  <section class="panel">
+    <h2>📋 Existujúce filmy</h2>
+    <div id="filmList" class="muted">Načítavam…</div>
+  </section>
 
-    <section class="panel">
-      <h2>🎬 Pridať alebo upraviť film</h2>
-      <form id="filmForm">
-        <input type="hidden" id="filmId">
-        <label for="title">Názov filmu *</label>
-        <input id="title" required maxlength="100">
-        <label for="description">Popis</label>
-        <textarea id="description" maxlength="500"></textarea>
-        <label for="image">Adresa obrázka/plagátu (URL)</label>
-        <input id="image" type="url" placeholder="https://...">
-        <label for="date">Dátum premietania</label>
-        <input id="date" type="date">
-        <label for="time">Čas premietania</label>
-        <input id="time" type="time">
-        <button class="primary" type="submit">Uložiť film</button>
-        <button class="edit" type="button" id="clearFilm">Vyčistiť formulár</button>
-      </form>
-    </section>
+  <section class="panel">
+    <h2>🎟️ Rezervácie lístkov</h2>
+    <p class="muted">Prehľad bezplatných rezervácií návštevníkov.</p>
+    <div id="ticketList" class="muted">Načítavam rezervácie…</div>
+  </section>
 
-    <section class="panel">
-      <h2>📋 Existujúce filmy</h2>
-      <div id="filmList" class="muted">Načítavam…</div>
-    </section>
-
-    <section class="panel">
-      <h2>🎟️ Rezervácie lístkov</h2>
-      <p class="muted">Prehľad bezplatných rezervácií návštevníkov.</p>
-      <div id="ticketList" class="muted">Načítavam rezervácie…</div>
-    </section>
-
-    <section class="panel">
-      <h2>📢 Pridať oznam</h2>
-      <form id="noticeForm">
-        <label for="noticeText">Text oznamu *</label>
-        <textarea id="noticeText" required maxlength="500"></textarea>
-        <button class="primary" type="submit">Pridať oznam</button>
-      </form>
-      <div id="noticeList" style="margin-top:15px"></div>
-    </section>
-  </div>
+  <section class="panel">
+    <h2>📢 Pridať oznam</h2>
+    <form id="noticeForm">
+      <label for="noticeText">Text oznamu *</label>
+      <textarea id="noticeText" required maxlength="500"></textarea>
+      <button class="primary" type="submit">Pridať oznam</button>
+    </form>
+    <div id="noticeList" style="margin-top:15px"></div>
+  </section>
 
   <p id="status" role="status" aria-live="polite"></p>
   <p class="muted">
-    Úpravy sa po úspešnom uložení do Firebase databázy zobrazia aj na stránke index.html.
+    Po úspešnom uložení do Firebase sa zmeny zobrazia aj na stránke index.html.
   </p>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
@@ -121,112 +107,91 @@
   };
 
   const statusEl = document.getElementById("status");
-  const adminContent = document.getElementById("adminContent");
-  const loginPanel = document.getElementById("loginPanel");
+  const filmList = document.getElementById("filmList");
+  const noticeList = document.getElementById("noticeList");
+  const ticketList = document.getElementById("ticketList");
 
   const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c =>
-    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])
+  );
 
   if (firebaseConfig.databaseURL === "DOPLN_REALTIME_DATABASE_URL") {
-    statusEl.textContent = "Doplň URL svojej Firebase Realtime Database.";
+    statusEl.textContent =
+      "Doplň URL svojej Firebase Realtime Database.";
+    filmList.textContent = "Databáza zatiaľ nie je pripojená.";
   } else {
     firebase.initializeApp(firebaseConfig);
 
-    const auth = firebase.auth();
     const db = firebase.database();
-
     const filmsRef = db.ref("starCinema/films");
     const noticesRef = db.ref("starCinema/notices");
     const ticketsRef = db.ref("starCinema/tickets");
 
-    auth.onAuthStateChanged(user => {
-      loginPanel.hidden = !!user;
-      adminContent.hidden = !user;
-
-      if (user) {
-        statusEl.textContent = "Prihlásený administrátor: " + user.email;
-        loadAdminData();
-      } else {
-        statusEl.textContent = "Prihlás sa, aby si mohol spravovať kino.";
-      }
-    });
-
-    document.getElementById("loginForm").addEventListener("submit", async event => {
+    // Ukladanie a úprava filmov
+    document.getElementById("filmForm").addEventListener("submit", async event => {
       event.preventDefault();
-      try {
-        await auth.signInWithEmailAndPassword(
-          document.getElementById("email").value.trim(),
-          document.getElementById("password").value
-        );
-        statusEl.textContent = "Prihlásenie úspešné.";
-      } catch (error) {
-        statusEl.textContent = "Chyba prihlásenia: " + error.message;
-      }
-    });
 
-    document.getElementById("logoutButton").addEventListener("click", async () => {
-      await auth.signOut();
-    });
-
-    function loadAdminData() {
-      const filmList = document.getElementById("filmList");
-      const noticeList = document.getElementById("noticeList");
-      const ticketList = document.getElementById("ticketList");
-
-      document.getElementById("filmForm").onsubmit = async event => {
-        event.preventDefault();
-
-        const id = document.getElementById("filmId").value;
-        const film = {
-          title: document.getElementById("title").value.trim(),
-          description: document.getElementById("description").value.trim(),
-          image: document.getElementById("image").value.trim(),
-          date: document.getElementById("date").value,
-          time: document.getElementById("time").value
-        };
-
-        if (!film.title) return;
-
-        try {
-          if (id) await filmsRef.child(id).update(film);
-          else await filmsRef.push(film);
-
-          statusEl.textContent = "Film bol uložený.";
-          document.getElementById("filmForm").reset();
-          document.getElementById("filmId").value = "";
-        } catch (error) {
-          statusEl.textContent = "Chyba pri ukladaní: " + error.message;
-        }
+      const id = document.getElementById("filmId").value;
+      const film = {
+        title: document.getElementById("title").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        image: document.getElementById("image").value.trim(),
+        date: document.getElementById("date").value,
+        time: document.getElementById("time").value
       };
 
-      document.getElementById("clearFilm").onclick = () => {
+      if (!film.title) return;
+
+      try {
+        if (id) {
+          await filmsRef.child(id).update(film);
+        } else {
+          await filmsRef.push(film);
+        }
+
+        statusEl.textContent = "Film bol uložený.";
         document.getElementById("filmForm").reset();
         document.getElementById("filmId").value = "";
-      };
+      } catch (error) {
+        statusEl.textContent = "Chyba pri ukladaní: " + error.message;
+      }
+    });
 
-      filmsRef.off();
-      filmsRef.on("value", snapshot => {
-        const entries = Object.entries(snapshot.val() || {});
+    document.getElementById("clearFilm").addEventListener("click", () => {
+      document.getElementById("filmForm").reset();
+      document.getElementById("filmId").value = "";
+    });
 
-        filmList.innerHTML = entries.length ? entries.map(([id, f]) => `
-          <div class="item">
-            <strong>${escapeHtml(f.title)}</strong>
-            <div class="muted">
-              ${escapeHtml(f.date || "")} ${escapeHtml(f.time || "")}<br>
-              ${escapeHtml(f.description || "")}
-            </div>
-            <button class="edit" type="button" data-edit="${escapeHtml(id)}">Upraviť</button>
-            <button class="danger" type="button" data-delete="${escapeHtml(id)}">Vymazať</button>
-          </div>`).join("") : "Zatiaľ nie sú pridané žiadne filmy.";
-      }, error => {
-        statusEl.textContent = "Chyba načítania filmov: " + error.message;
-      });
+    // Zobrazovanie filmov
+    filmsRef.on("value", snapshot => {
+      const entries = Object.entries(snapshot.val() || {});
 
-      filmList.onclick = async event => {
-        const editId = event.target.dataset.edit;
-        const deleteId = event.target.dataset.delete;
+      filmList.innerHTML = entries.length ? entries.map(([id, f]) => `
+        <div class="item">
+          <strong>${escapeHtml(f.title)}</strong>
+          <div class="muted">
+            ${escapeHtml(f.date || "")} ${escapeHtml(f.time || "")}<br>
+            ${escapeHtml(f.description || "")}
+          </div>
+          <button class="edit" type="button" data-edit="${escapeHtml(id)}">
+            Upraviť
+          </button>
+          <button class="danger" type="button" data-delete="${escapeHtml(id)}">
+            Vymazať
+          </button>
+        </div>
+      `).join("") : "Zatiaľ nie sú pridané žiadne filmy.";
+    }, error => {
+      statusEl.textContent = "Chyba načítania filmov: " + error.message;
+    });
 
-        if (editId) {
+    // Úprava a mazanie filmov
+    filmList.addEventListener("click", async event => {
+      const editId = event.target.dataset.edit;
+      const deleteId = event.target.dataset.delete;
+
+      if (editId) {
+        try {
           const snap = await filmsRef.child(editId).get();
           const f = snap.val();
           if (!f) return;
@@ -237,92 +202,105 @@
           document.getElementById("image").value = f.image || "";
           document.getElementById("date").value = f.date || "";
           document.getElementById("time").value = f.time || "";
-          window.scrollTo({top:0,behavior:"smooth"});
-        }
 
-        if (deleteId && confirm("Naozaj chceš vymazať tento film?")) {
-          try {
-            await filmsRef.child(deleteId).remove();
-            statusEl.textContent = "Film bol vymazaný.";
-          } catch (error) {
-            statusEl.textContent = "Chyba pri mazaní: " + error.message;
-          }
-        }
-      };
-
-      ticketsRef.off();
-      ticketsRef.on("value", snapshot => {
-        const entries = Object.entries(snapshot.val() || {})
-          .sort((a,b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
-
-        ticketList.innerHTML = entries.length ? entries.map(([id,t]) => `
-          <div class="item">
-            <strong>${escapeHtml(t.filmTitle || "Film")}</strong>
-            <div class="muted">
-              Kód: ${escapeHtml(t.code || "")} ·
-              Počet: ${Number(t.count) || 0} · Cena: 0 €
-            </div>
-            <button class="danger" type="button" data-ticket-delete="${escapeHtml(id)}">
-              Odstrániť rezerváciu
-            </button>
-          </div>`).join("") : "Zatiaľ neboli vytvorené žiadne rezervácie.";
-      }, error => {
-        statusEl.textContent = "Chyba načítania rezervácií: " + error.message;
-      });
-
-      ticketList.onclick = async event => {
-        const id = event.target.dataset.ticketDelete;
-        if (id && confirm("Odstrániť túto rezerváciu?")) {
-          try {
-            await ticketsRef.child(id).remove();
-            statusEl.textContent = "Rezervácia bola odstránená.";
-          } catch (error) {
-            statusEl.textContent = "Chyba pri odstraňovaní: " + error.message;
-          }
-        }
-      };
-
-      document.getElementById("noticeForm").onsubmit = async event => {
-        event.preventDefault();
-        const text = document.getElementById("noticeText").value.trim();
-        if (!text) return;
-
-        try {
-          await noticesRef.push({text});
-          document.getElementById("noticeForm").reset();
-          statusEl.textContent = "Oznam bol pridaný.";
+          window.scrollTo({top:0, behavior:"smooth"});
         } catch (error) {
-          statusEl.textContent = "Chyba pri pridávaní oznamu: " + error.message;
+          statusEl.textContent = "Chyba načítania filmu: " + error.message;
         }
-      };
+      }
 
-      noticesRef.off();
-      noticesRef.on("value", snapshot => {
-        const entries = Object.entries(snapshot.val() || {});
-
-        noticeList.innerHTML = entries.length ? entries.map(([id,n]) => `
-          <div class="item">
-            ${escapeHtml(n.text)}
-            <button class="danger" type="button" data-notice-delete="${escapeHtml(id)}">
-              Vymazať oznam
-            </button>
-          </div>`).join("") : '<p class="muted">Zatiaľ žiadne oznamy.</p>';
-      }, error => {
-        statusEl.textContent = "Chyba načítania oznamov: " + error.message;
-      });
-
-      noticeList.onclick = async event => {
-        const id = event.target.dataset.noticeDelete;
-        if (id && confirm("Vymazať tento oznam?")) {
-          try {
-            await noticesRef.child(id).remove();
-            statusEl.textContent = "Oznam bol vymazaný.";
-          } catch (error) {
-            statusEl.textContent = "Chyba pri mazaní: " + error.message;
-          }
+      if (deleteId && confirm("Naozaj chceš vymazať tento film?")) {
+        try {
+          await filmsRef.child(deleteId).remove();
+          statusEl.textContent = "Film bol vymazaný.";
+        } catch (error) {
+          statusEl.textContent = "Chyba pri mazaní: " + error.message;
         }
-      };
-    }
+      }
+    });
+
+    // Zobrazovanie rezervácií
+    ticketsRef.on("value", snapshot => {
+      const entries = Object.entries(snapshot.val() || {})
+        .sort((a,b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+
+      ticketList.innerHTML = entries.length ? entries.map(([id,t]) => `
+        <div class="item">
+          <strong>${escapeHtml(t.filmTitle || "Film")}</strong>
+          <div class="muted">
+            Kód: ${escapeHtml(t.code || "")} ·
+            Počet: ${Number(t.count) || 0} · Cena: 0 €
+          </div>
+          <button class="danger" type="button"
+            data-ticket-delete="${escapeHtml(id)}">
+            Odstrániť rezerváciu
+          </button>
+        </div>
+      `).join("") : "Zatiaľ neboli vytvorené žiadne rezervácie.";
+    }, error => {
+      statusEl.textContent = "Chyba načítania rezervácií: " + error.message;
+    });
+
+    // Mazanie rezervácií
+    ticketList.addEventListener("click", async event => {
+      const id = event.target.dataset.ticketDelete;
+
+      if (id && confirm("Odstrániť túto rezerváciu?")) {
+        try {
+          await ticketsRef.child(id).remove();
+          statusEl.textContent = "Rezervácia bola odstránená.";
+        } catch (error) {
+          statusEl.textContent = "Chyba pri mazaní: " + error.message;
+        }
+      }
+    });
+
+    // Pridávanie oznamov
+    document.getElementById("noticeForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const text = document.getElementById("noticeText").value.trim();
+      if (!text) return;
+
+      try {
+        await noticesRef.push({text});
+        document.getElementById("noticeForm").reset();
+        statusEl.textContent = "Oznam bol pridaný.";
+      } catch (error) {
+        statusEl.textContent = "Chyba pri pridávaní oznamu: " + error.message;
+      }
+    });
+
+    // Zobrazovanie oznamov
+    noticesRef.on("value", snapshot => {
+      const entries = Object.entries(snapshot.val() || {});
+
+      noticeList.innerHTML = entries.length ? entries.map(([id,n]) => `
+        <div class="item">
+          ${escapeHtml(n.text)}
+          <button class="danger" type="button"
+            data-notice-delete="${escapeHtml(id)}">
+            Vymazať oznam
+          </button>
+        </div>
+      `).join("") : '<p class="muted">Zatiaľ žiadne oznamy.</p>';
+    }, error => {
+      statusEl.textContent = "Chyba načítania oznamov: " + error.message;
+    });
+
+    // Mazanie oznamov
+    noticeList.addEventListener("click", async event => {
+      const id = event.target.dataset.noticeDelete;
+
+      if (id && confirm("Vymazať tento oznam?")) {
+        try {
+          await noticesRef.child(id).remove();
+          statusEl.textContent = "Oznam bol vymazaný.";
+        } catch (error) {
+          statusEl.textContent = "Chyba pri mazaní: " + error.message;
+        }
+      }
+    });
   }
 </script>
 </body>
