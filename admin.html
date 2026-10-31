@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="sk">
 <head>
@@ -27,7 +26,7 @@ button{border:0;border-radius:8px;padding:11px 16px;font-weight:bold;cursor:poin
 .warning{background:#3a2b16;border:1px solid #9b742a;padding:14px;border-radius:9px;color:#ffe3a0;line-height:1.5}
 #status{margin-top:12px;color:var(--gold)}
 #scanner{max-width:500px;margin:15px auto}
-.result{padding:15px;border-radius:9px;margin-top:15px;background:#292941;line-height:1.6}
+.result{padding:15px;border-radius:9px;margin-top:15px;background:#292941;line-height:1.6;overflow-wrap:anywhere}
 .good{border:1px solid #38a169;color:#a7f3c2}
 .bad{border:1px solid #c44;color:#ffb5b5}
 </style>
@@ -45,7 +44,7 @@ Administrácia je bez prihlasovania. Verejný zápis do databázy umožňuje aj 
 
 <section class="panel" style="margin-top:22px">
 <h2>📷 Skenovanie vstupeniek</h2>
-<p class="muted">Namier kameru na čiarový kód. Platná rezervácia sa označí ako použitá. Pri opakovanom skenovaní sa zobrazí upozornenie.</p>
+<p class="muted">Namier kameru na čiarový kód. Platná rezervácia sa označí ako použitá. Platný lístok zapípa jedným zvukom, neplatný alebo už použitý iným.</p>
 <div id="scanner"></div>
 <button class="primary" id="startScanner" type="button">Spustiť kameru</button>
 <button class="edit" id="stopScanner" type="button">Zastaviť kameru</button>
@@ -136,7 +135,70 @@ const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c =>
 );
 const status = message => $("status").textContent = message;
 
-// Pridanie a úprava filmu vrátane kapacity
+// ZVUK SKENERA
+let audioContext = null;
+
+function prepareAudio() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  if (!audioContext) audioContext = new AudioContextClass();
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume().catch(() => {});
+  }
+}
+
+function playTone(frequency, duration, delay = 0) {
+  if (!audioContext) return;
+
+  const play = () => {
+    if (!audioContext || audioContext.state !== "running") return;
+
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+
+    const start = audioContext.currentTime;
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.02);
+  };
+
+  setTimeout(play, delay);
+}
+
+function playScanSound(success) {
+  if (success) {
+    playTone(1000, 0.2);
+  } else {
+    playTone(300, 0.22);
+    playTone(220, 0.22, 260);
+  }
+}
+
+function getTicketNames(ticket) {
+  if (Array.isArray(ticket.customerNames) && ticket.customerNames.length) {
+    return ticket.customerNames;
+  }
+  return [ticket.customerName || "Neuvedené"];
+}
+
+function ticketNamesHtml(ticket) {
+  return getTicketNames(ticket)
+    .map((name,index) => (index + 1) + ". " + escapeHtml(name))
+    .join("<br>");
+}
+
+// PRIDANIE A ÚPRAVA FILMU
 $("filmForm").addEventListener("submit", async event => {
   event.preventDefault();
 
@@ -164,12 +226,14 @@ $("filmForm").addEventListener("submit", async event => {
       const ref = filmsRef.child(id);
       const snap = await ref.get();
       const existing = snap.val();
+
       if (!existing) {
         status("Film už neexistuje.");
         return;
       }
 
       const soldCount = Number(existing.soldCount || 0);
+
       if (capacity < soldCount) {
         status("Kapacita nemôže byť nižšia ako už rezervovaný počet lístkov (" + soldCount + ").");
         return;
@@ -195,7 +259,7 @@ $("clearFilm").onclick = () => {
   $("filmId").value = "";
 };
 
-// Zoznam filmov
+// ZOZNAM FILMOV
 filmsRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {});
 
@@ -240,6 +304,7 @@ $("filmList").addEventListener("click", async event => {
       $("date").value = f.date || "";
       $("time").value = f.time || "";
       $("capacity").value = f.capacity || "";
+
       window.scrollTo({top:0,behavior:"smooth"});
     } catch (error) {
       status(error.message);
@@ -256,7 +321,7 @@ $("filmList").addEventListener("click", async event => {
   }
 });
 
-// Rezervácie
+// REZERVÁCIE
 ticketsRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {})
     .sort((a,b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
@@ -265,7 +330,8 @@ ticketsRef.on("value", snapshot => {
     <div class="item">
       <strong>${escapeHtml(t.filmTitle || "Film")}</strong>
       <div class="muted">
-        Meno: ${escapeHtml(t.customerName || "Neuvedené")}<br>
+        Mená návštevníkov:<br>
+        ${ticketNamesHtml(t)}<br>
         Kód: ${escapeHtml(t.code || "")}<br>
         Počet lístkov: ${Number(t.count) || 0} · Cena: 0 €<br>
         Stav: <strong>${t.used ? "POUŽITÁ" : "NEPOUŽITÁ"}</strong><br>
@@ -278,6 +344,7 @@ ticketsRef.on("value", snapshot => {
 
 $("ticketList").addEventListener("click", async event => {
   const id = event.target.dataset.ticketDelete;
+
   if (id && confirm("Odstrániť rezerváciu?")) {
     try {
       const ticketSnap = await ticketsRef.child(id).get();
@@ -297,7 +364,7 @@ $("ticketList").addEventListener("click", async event => {
   }
 });
 
-// Kontrola a označenie vstupenky
+// KONTROLA A OZNAČENIE VSTUPENKY
 async function checkTicket(rawCode) {
   const code = String(rawCode || "").trim().toUpperCase();
   const result = $("scanResult");
@@ -305,6 +372,7 @@ async function checkTicket(rawCode) {
   if (!code) {
     result.className = "result bad";
     result.textContent = "Zadaj alebo naskenuj kód vstupenky.";
+    playScanSound(false);
     return;
   }
 
@@ -317,69 +385,82 @@ async function checkTicket(rawCode) {
     if (!snapshot.exists()) {
       result.className = "result bad";
       result.textContent = "❌ NEPLATNÝ LÍSTOK – kód sa nenašiel.";
+      playScanSound(false);
       return;
     }
 
     const matches = Object.entries(snapshot.val());
+
     if (matches.length !== 1) {
       result.className = "result bad";
       result.textContent = "❌ Kód nie je jednoznačný. Obráť sa na správcu.";
+      playScanSound(false);
       return;
     }
 
     const [id] = matches[0];
     const ticketRef = ticketsRef.child(id);
-    let outcome = "error";
 
     const transaction = await ticketRef.transaction(current => {
       if (!current || current.code !== code || current.used === true) return;
+
       current.used = true;
       current.usedAt = Date.now();
-      outcome = "accepted";
       return current;
     });
 
     const latest = await ticketRef.once("value");
     const ticket = latest.val();
 
-    if (transaction.committed && outcome === "accepted") {
+    if (transaction.committed && ticket) {
       result.className = "result good";
       result.innerHTML = `
         <strong>✅ LÍSTOK PLATNÝ – VSTUP POVOLENÝ</strong><br>
         Film: ${escapeHtml(ticket.filmTitle)}<br>
-        Meno: ${escapeHtml(ticket.customerName || "Neuvedené")}<br>
+        Mená návštevníkov:<br>
+        ${ticketNamesHtml(ticket)}<br>
         Počet lístkov: ${Number(ticket.count) || 0}<br>
         Kód: ${escapeHtml(ticket.code)}<br>
         Stav: POUŽITÁ
       `;
+      playScanSound(true);
     } else if (ticket && ticket.used === true) {
       result.className = "result bad";
       result.innerHTML = `
         <strong>⛔ TENTO LÍSTOK UŽ BOL POUŽITÝ</strong><br>
         Film: ${escapeHtml(ticket.filmTitle)}<br>
-        Meno: ${escapeHtml(ticket.customerName || "Neuvedené")}<br>
+        Mená návštevníkov:<br>
+        ${ticketNamesHtml(ticket)}<br>
         Kód: ${escapeHtml(ticket.code)}<br>
         ${ticket.usedAt ? "Použitý: " + escapeHtml(new Date(ticket.usedAt).toLocaleString("sk-SK")) : ""}
       `;
+      playScanSound(false);
     } else {
       result.className = "result bad";
       result.textContent = "❌ Lístok sa nepodarilo overiť. Skús to znova.";
+      playScanSound(false);
     }
   } catch (error) {
     result.className = "result bad";
     result.textContent = "Chyba pri kontrole: " + error.message;
+    playScanSound(false);
   }
 }
 
-$("checkManual").onclick = () => checkTicket($("manualCode").value);
+$("checkManual").onclick = () => {
+  prepareAudio();
+  checkTicket($("manualCode").value);
+};
+
 $("manualCode").addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
+    prepareAudio();
     checkTicket($("manualCode").value);
   }
 });
 
-// Kamera
+// KAMERA A ČIAROVÝ KÓD
 let scanner = null;
 let scannerRunning = false;
 let lastScannedCode = "";
@@ -387,6 +468,8 @@ let lastScannedAt = 0;
 
 $("startScanner").onclick = async () => {
   if (scannerRunning) return;
+
+  prepareAudio();
 
   try {
     if (!scanner) scanner = new Html5Qrcode("scanner");
@@ -405,9 +488,12 @@ $("startScanner").onclick = async () => {
       },
       decodedText => {
         const now = Date.now();
+
         if (decodedText === lastScannedCode && now-lastScannedAt < 3000) return;
+
         lastScannedCode = decodedText;
         lastScannedAt = now;
+
         $("manualCode").value = decodedText;
         checkTicket(decodedText);
       },
@@ -424,6 +510,7 @@ $("startScanner").onclick = async () => {
 
 $("stopScanner").onclick = async () => {
   if (!scanner || !scannerRunning) return;
+
   try {
     await scanner.stop();
     scannerRunning = false;
@@ -433,9 +520,10 @@ $("stopScanner").onclick = async () => {
   }
 };
 
-// Oznamy
+// OZAMY
 $("noticeForm").addEventListener("submit", async event => {
   event.preventDefault();
+
   const text = $("noticeText").value.trim();
   if (!text) return;
 
@@ -450,6 +538,7 @@ $("noticeForm").addEventListener("submit", async event => {
 
 noticesRef.on("value", snapshot => {
   const entries = Object.entries(snapshot.val() || {});
+
   $("noticeList").innerHTML = entries.length ? entries.map(([id,n]) => `
     <div class="item">
       ${escapeHtml(n.text)}
@@ -460,6 +549,7 @@ noticesRef.on("value", snapshot => {
 
 $("noticeList").addEventListener("click", async event => {
   const id = event.target.dataset.noticeDelete;
+
   if (id && confirm("Vymazať tento oznam?")) {
     try {
       await noticesRef.child(id).remove();
