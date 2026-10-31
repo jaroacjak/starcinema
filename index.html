@@ -2,90 +2,97 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Star Cinema ⭐ | Rodinné kino</title>
-  <style>
-    :root{--bg:#101020;--panel:#1d1d32;--gold:#f6ca55;--muted:#c4c4d2}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:#fff;font-family:Arial,sans-serif}
-    header{padding:22px 6%;display:flex;justify-content:space-between;align-items:center;background:#080812;gap:15px;flex-wrap:wrap}
-    .brand{color:var(--gold);font-size:26px;font-weight:800}
-    nav a{color:#fff;text-decoration:none;margin-left:18px}
-    nav a:hover{color:var(--gold)}
-    .hero{padding:85px 20px;text-align:center;background:radial-gradient(circle at top,#45305c,#17172d 65%,#101020)}
-    .hero h1{font-size:clamp(36px,7vw,64px);color:var(--gold);margin:0 0 15px}
-    .hero p{font-size:19px;color:#eee}
-    main{max-width:1100px;margin:auto;padding:42px 20px}
-    h2{color:var(--gold);margin:0 0 22px}
-    #films{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
-    .film{background:var(--panel);border:1px solid #34344d;border-radius:15px;overflow:hidden}
-    .film img{width:100%;height:280px;object-fit:cover;background:#292941}
-    .film-content{padding:17px}
-    .film h3{margin:0 0 8px;color:var(--gold)}
-    .film p{color:var(--muted);line-height:1.5}
-    .notice{background:#1d1d32;border-left:4px solid var(--gold);padding:16px;border-radius:8px;margin:12px 0}
-    button{padding:11px 15px;background:var(--gold);color:#171717;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
-    dialog{max-width:420px;width:calc(100% - 30px);border:1px solid #55556c;border-radius:14px;background:#1d1d32;color:white;padding:24px}
-    dialog::backdrop{background:#000b}
-    dialog input{width:100%;padding:11px;margin:8px 0 14px;border-radius:8px;border:1px solid #55556c;background:#101020;color:white}
-    .secondary{background:#44445b;color:white}
-    footer{text-align:center;padding:25px;background:#080812;color:var(--muted);margin-top:30px}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Star Cinema | Rodinné kino</title>
+<style>
+:root{--bg:#101020;--panel:#1d1d32;--gold:#f6ca55;--muted:#c4c4d2}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:white;font-family:Arial,sans-serif}
+header{padding:22px 6%;display:flex;justify-content:space-between;align-items:center;background:#080812;gap:15px;flex-wrap:wrap}
+.brand{color:var(--gold);font-size:26px;font-weight:bold}
+nav a{color:white;text-decoration:none;margin-left:15px}
+nav a:hover{color:var(--gold)}
+.hero{padding:75px 20px;text-align:center;background:radial-gradient(circle at top,#45305c,#17172d 65%,#101020)}
+.hero h1{font-size:clamp(36px,7vw,64px);color:var(--gold);margin:0 0 15px}
+.hero p{font-size:19px}
+main{max-width:1100px;margin:auto;padding:42px 20px}
+h2{color:var(--gold)}
+#films{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.film{background:var(--panel);border:1px solid #34344d;border-radius:15px;overflow:hidden}
+.film img{width:100%;height:280px;object-fit:cover}
+.film-content{padding:17px}
+.film h3{color:var(--gold);margin-top:0}
+.film p{color:var(--muted);line-height:1.5}
+.notice{background:var(--panel);border-left:4px solid var(--gold);padding:16px;border-radius:8px;margin:12px 0}
+button{padding:11px 15px;background:var(--gold);color:#171717;border:0;border-radius:8px;font-weight:bold;cursor:pointer;margin:5px}
+button:disabled{opacity:.5;cursor:not-allowed}
+dialog{max-width:480px;width:calc(100% - 30px);border:1px solid #55556c;border-radius:14px;background:var(--panel);color:white;padding:24px}
+dialog::backdrop{background:#000b}
+dialog input{width:100%;padding:11px;margin:8px 0 14px;border-radius:8px;border:1px solid #55556c;background:var(--bg);color:white}
+.secondary{background:#44445b;color:white}
+.ticket{background:white;color:#171717;border-radius:12px;padding:20px;margin-top:18px;text-align:center}
+.ticket h2{color:#171717;margin:0 0 8px}
+.ticket p{color:#333}
+.ticket canvas{max-width:100%;height:auto}
+.ticket-actions{display:flex;flex-wrap:wrap;justify-content:center;margin-top:12px}
+#ticketMessage{line-height:1.5}
+footer{text-align:center;padding:25px;background:#080812;color:var(--muted);margin-top:30px}
+</style>
 </head>
 <body>
-
 <header>
-  <div class="brand">⭐ STAR CINEMA</div>
-  <nav>
-    <a href="#domov">Domov</a>
-    <a href="#program">Filmový program</a>
-    <a href="#oznamy">Oznamy</a>
-    <a href="#onas">O nás</a>
-  </nav>
+<div class="brand">⭐ STAR CINEMA</div>
+<nav>
+<a href="#domov">Domov</a>
+<a href="#program">Program</a>
+<a href="#oznamy">Oznamy</a>
+<a href="#onas">O nás</a>
+</nav>
 </header>
 
 <section class="hero" id="domov">
-  <h1>Vitajte v Star Cinema!</h1>
-  <p>Vaše rodinné kino plné filmových zážitkov 🍿</p>
+<h1>Vitajte v Star Cinema!</h1>
+<p>Vaše rodinné kino plné filmových zážitkov 🍿</p>
 </section>
 
 <main>
-  <section id="program">
-    <h2>🎬 Filmový program</h2>
-    <div id="films">Načítavam filmy…</div>
-  </section>
+<section id="program">
+<h2>🎬 Filmový program</h2>
+<div id="films">Načítavam filmy…</div>
+</section>
 
-  <section id="oznamy" style="margin-top:48px">
-    <h2>📢 Oznamy kina</h2>
-    <div id="notices">Načítavam oznamy…</div>
-  </section>
+<section id="oznamy" style="margin-top:48px">
+<h2>📢 Oznamy kina</h2>
+<div id="notices">Načítavam oznamy…</div>
+</section>
 
-  <section id="onas" style="margin-top:48px">
-    <h2>⭐ O našom kine</h2>
-    <p style="color:#c4c4d2;line-height:1.7">
-      Star Cinema je naše rodinné kino, kde si spoločne užívame filmové príbehy a chvíle pohody.
-    </p>
-  </section>
+<section id="onas" style="margin-top:48px">
+<h2>⭐ O našom kine</h2>
+<p style="color:#c4c4d2;line-height:1.7">Star Cinema je naše rodinné kino, kde si spoločne užívame filmové príbehy a chvíle pohody.</p>
+</section>
 </main>
 
 <dialog id="ticketDialog">
-  <form id="ticketForm">
-    <h2>🎟️ Bezplatný lístok</h2>
-    <p id="selectedFilm"></p>
-    <label for="ticketCount">Počet lístkov</label>
-    <input id="ticketCount" type="number" min="1" max="10" value="1" required>
-    <p style="color:#f6ca55;font-weight:bold">Cena spolu: 0 €</p>
-    <button type="submit">Potvrdiť rezerváciu – 0 €</button>
-    <button class="secondary" type="button" id="closeTicket">Zavrieť</button>
-    <p id="ticketMessage" aria-live="polite"></p>
-  </form>
+<form id="ticketForm">
+<h2>🎟️ Bezplatný lístok</h2>
+<p id="selectedFilm"></p>
+<label for="ticketCount">Počet lístkov</label>
+<input id="ticketCount" type="number" min="1" max="10" value="1" required>
+<p style="color:#f6ca55;font-weight:bold">Cena spolu: 0 €</p>
+<button id="reserveButton" type="submit">Potvrdiť rezerváciu – 0 €</button>
+<button class="secondary" type="button" id="closeTicket">Zavrieť</button>
+<p id="ticketMessage" aria-live="polite"></p>
+<div id="ticketResult"></div>
+</form>
 </dialog>
 
 <footer>⭐ STAR CINEMA ⭐<br>© <span id="year"></span> Rodinné kino</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
@@ -100,16 +107,18 @@ const firebaseConfig = {
   appId: "1:663535518233:web:81998faf65206dd38f6088"
 };
 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const filmsRef = db.ref("starCinema/films");
+
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])
 );
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+let selectedFilmId = null;
 
-db.ref("starCinema/films").on("value", snapshot => {
-  const films = snapshot.val() || {};
-  const entries = Object.entries(films);
+filmsRef.on("value", snapshot => {
+  const entries = Object.entries(snapshot.val() || {});
   const container = document.getElementById("films");
 
   if (!entries.length) {
@@ -117,74 +126,169 @@ db.ref("starCinema/films").on("value", snapshot => {
     return;
   }
 
-  container.innerHTML = entries.map(([id, film]) => `
+  container.innerHTML = entries.map(([id,film]) => `
     <article class="film">
-      ${film.image ? `<img src="${escapeHtml(film.image)}" alt="Plagát filmu">` : ""}
+      ${film.image ? `<img src="${escapeHtml(film.image)}" alt="Plagát filmu" loading="lazy">` : ""}
       <div class="film-content">
         <h3>${escapeHtml(film.title)}</h3>
-        <p>${escapeHtml(film.description)}</p>
+        <p>${escapeHtml(film.description || "")}</p>
         ${film.date ? `<p>📅 ${escapeHtml(film.date)}</p>` : ""}
         ${film.time ? `<p>🕒 ${escapeHtml(film.time)}</p>` : ""}
-        <button type="button" data-book="${escapeHtml(id)}"
-          data-title="${escapeHtml(film.title)}">
-          🎟️ Získať lístok – 0 €
-        </button>
+        <button type="button" data-book="${escapeHtml(id)}">🎟️ Získať lístok – 0 €</button>
       </div>
     </article>
   `).join("");
 }, error => {
-  document.getElementById("films").textContent =
-    "Chyba načítania filmov: " + error.message;
+  document.getElementById("films").textContent = "Chyba načítania filmov: " + error.message;
 });
 
-const ticketDialog = document.getElementById("ticketDialog");
-let selectedFilmId = null;
+const dialog = document.getElementById("ticketDialog");
 
 document.getElementById("films").addEventListener("click", event => {
   const button = event.target.closest("[data-book]");
   if (!button) return;
 
   selectedFilmId = button.dataset.book;
+  const article = button.closest(".film");
   document.getElementById("selectedFilm").textContent =
-    "Film: " + button.dataset.title;
+    "Film: " + article.querySelector("h3").textContent;
   document.getElementById("ticketCount").value = 1;
   document.getElementById("ticketMessage").textContent = "";
-  ticketDialog.showModal();
+  document.getElementById("ticketResult").innerHTML = "";
+  document.getElementById("reserveButton").disabled = false;
+  dialog.showModal();
 });
 
-document.getElementById("closeTicket").onclick = () => ticketDialog.close();
+document.getElementById("closeTicket").onclick = () => dialog.close();
+
+function createTicketCard(ticket) {
+  const result = document.getElementById("ticketResult");
+  result.innerHTML = `
+    <div class="ticket" id="printTicket">
+      <h2>⭐ STAR CINEMA ⭐</h2>
+      <p><strong>VSTUPENKA DO KINA</strong></p>
+      <p id="ticketFilm"></p>
+      <p id="ticketCountText"></p>
+      <p><strong>Cena: 0 €</strong></p>
+      <canvas id="barcodeCanvas"></canvas>
+      <p id="ticketCodeText" style="font-weight:bold;letter-spacing:2px"></p>
+      <p style="font-size:12px">Tento čiarový kód predlož pri vstupe.</p>
+    </div>
+    <div class="ticket-actions">
+      <button type="button" id="downloadPng">Stiahnuť PNG</button>
+      <button type="button" id="downloadPdf">Stiahnuť PDF</button>
+      <button type="button" id="printTicketButton">Vytlačiť</button>
+    </div>
+  `;
+
+  document.getElementById("ticketFilm").textContent = "Film: " + ticket.filmTitle;
+  document.getElementById("ticketCountText").textContent = "Počet lístkov: " + ticket.count;
+  document.getElementById("ticketCodeText").textContent = ticket.code;
+
+  const canvas = document.getElementById("barcodeCanvas");
+  JsBarcode(canvas, ticket.code, {
+    format:"CODE128",
+    width:2,
+    height:75,
+    displayValue:false,
+    margin:10,
+    background:"#ffffff",
+    lineColor:"#000000"
+  });
+
+  document.getElementById("downloadPng").onclick = () => {
+    const link = document.createElement("a");
+    link.download = "Star-Cinema-" + ticket.code + ".png";
+    link.href = document.getElementById("printTicket").querySelector("canvas").toDataURL("image/png");
+    link.click();
+  };
+
+  document.getElementById("downloadPdf").onclick = () => {
+    const {jsPDF} = window.jspdf;
+    const pdf = new jsPDF({orientation:"portrait",unit:"mm",format:"a5"});
+    pdf.setFontSize(20);
+    pdf.text("STAR CINEMA", 74, 22, {align:"center"});
+    pdf.setFontSize(15);
+    pdf.text("VSTUPENKA DO KINA", 74, 34, {align:"center"});
+    pdf.setFontSize(12);
+    pdf.text("Film: " + ticket.filmTitle, 15, 50);
+    pdf.text("Pocet listkov: " + ticket.count, 15, 60);
+    pdf.text("Cena: 0 EUR", 15, 70);
+    const img = canvas.toDataURL("image/png");
+    pdf.addImage(img,"PNG",15,82,118,35);
+    pdf.setFontSize(12);
+    pdf.text("Kod: " + ticket.code, 74, 128, {align:"center"});
+    pdf.setFontSize(9);
+    pdf.text("Predlozte pri vstupe do kina.",74,140,{align:"center"});
+    pdf.save("Star-Cinema-" + ticket.code + ".pdf");
+  };
+
+  document.getElementById("printTicketButton").onclick = () => {
+    const ticketHtml = document.getElementById("printTicket").outerHTML;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Povoľ vyskakovacie okná, aby sa dala vstupenka vytlačiť.");
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html><html lang="sk"><head><meta charset="UTF-8">
+      <title>Vstupenka Star Cinema</title>
+      <style>
+      body{font-family:Arial;text-align:center;padding:25px}
+      .ticket{border:2px dashed #333;padding:25px;max-width:450px;margin:auto}
+      canvas{max-width:100%}
+      </style></head><body>${ticketHtml}
+      <script>
+      window.onload=function(){window.print()}
+      <\/script></body></html>
+    `);
+    printWindow.document.close();
+  };
+}
 
 document.getElementById("ticketForm").addEventListener("submit", async event => {
   event.preventDefault();
 
   const count = Number(document.getElementById("ticketCount").value);
   const message = document.getElementById("ticketMessage");
+  const reserveButton = document.getElementById("reserveButton");
 
-  if (!selectedFilmId || !Number.isInteger(count) || count < 1 || count > 10) return;
+  if (!selectedFilmId || !Number.isInteger(count) || count < 1 || count > 10) {
+    message.textContent = "Zadaj počet lístkov od 1 do 10.";
+    return;
+  }
+
+  reserveButton.disabled = true;
+  message.textContent = "Spracovávam rezerváciu…";
 
   try {
-    const filmSnapshot = await db.ref("starCinema/films/" + selectedFilmId).get();
+    const filmSnapshot = await filmsRef.child(selectedFilmId).get();
     if (!filmSnapshot.exists()) {
       message.textContent = "Tento film už nie je dostupný.";
+      reserveButton.disabled = false;
       return;
     }
 
     const film = filmSnapshot.val();
-    const code = "SC-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    const ticketRef = db.ref("starCinema/tickets").push();
+    const code = "SC-" + ticketRef.key.slice(-10).toUpperCase();
 
-    await db.ref("starCinema/tickets").push({
+    const ticket = {
       code,
-      filmId: selectedFilmId,
-      filmTitle: film.title || "Film",
+      filmId:selectedFilmId,
+      filmTitle:film.title || "Film",
       count,
-      price: 0,
-      createdAt: Date.now()
-    });
+      price:0,
+      createdAt:Date.now(),
+      used:false
+    };
 
-    message.textContent =
-      "Rezervácia potvrdená! Kód: " + code + " · Cena: 0 €.";
+    await ticketRef.set(ticket);
+    message.textContent = "Rezervácia potvrdená! Vstupenku si môžeš uložiť.";
+    createTicketCard(ticket);
   } catch (error) {
     message.textContent = "Rezervácia sa nepodarila: " + error.message;
+    reserveButton.disabled = false;
   }
 });
 
@@ -194,8 +298,7 @@ db.ref("starCinema/notices").on("value", snapshot => {
     ? entries.map(n => `<div class="notice">${escapeHtml(n.text)}</div>`).join("")
     : "<p>Momentálne nemáme žiadne oznamy.</p>";
 }, error => {
-  document.getElementById("notices").textContent =
-    "Chyba načítania oznamov: " + error.message;
+  document.getElementById("notices").textContent = "Chyba načítania oznamov: " + error.message;
 });
 </script>
 </body>
