@@ -2,210 +2,218 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>STAR CINEMA</title>
-<style>
-:root{--gold:#f6ca55;--bg:#101020;--panel:#202039}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:white;font-family:Arial,sans-serif}
-header{background:#080812;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
-.logo{color:var(--gold);font-size:26px;font-weight:bold}
-nav a{color:white;text-decoration:none;margin:8px}
-.hero{text-align:center;padding:85px 15px;background:linear-gradient(130deg,#39254e,#15152c)}
-.hero h1{font-size:clamp(35px,7vw,60px);color:var(--gold)}
-main{max-width:1100px;margin:auto;padding:30px 18px}
-h2{color:var(--gold)}
-#films{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
-.film{background:var(--panel);border-radius:14px;overflow:hidden}
-.film img{width:100%;height:270px;object-fit:cover}
-.film-content{padding:17px}
-.film h3{color:var(--gold)}
-.film p{line-height:1.5;color:#ddd}
-button{background:var(--gold);border:0;padding:12px 16px;border-radius:8px;font-weight:bold;cursor:pointer}
-.notice{background:var(--panel);padding:16px;margin:12px 0;border-left:4px solid var(--gold);border-radius:8px}
-footer{text-align:center;padding:25px;background:#080812;color:#ccc}
-dialog{background:#202039;color:white;border:1px solid #666;border-radius:15px;padding:24px;width:min(420px,95%)}
-dialog::backdrop{background:#000b}
-input{display:block;width:100%;padding:12px;margin:12px 0;background:#101020;color:white;border:1px solid #666;border-radius:7px}
-#message{color:var(--gold)}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Star Cinema ⭐ | Rodinné kino</title>
+  <style>
+    :root{--bg:#101020;--panel:#1d1d32;--gold:#f6ca55;--muted:#c4c4d2}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#fff;font-family:Arial,sans-serif}
+    header{padding:22px 6%;display:flex;justify-content:space-between;align-items:center;background:#080812;gap:15px;flex-wrap:wrap}
+    .brand{color:var(--gold);font-size:26px;font-weight:800;letter-spacing:1px}
+    nav a{color:#fff;text-decoration:none;margin-left:18px}
+    nav a:hover{color:var(--gold)}
+    .hero{padding:85px 20px;text-align:center;background:radial-gradient(circle at top,#45305c,#17172d 65%,#101020)}
+    .hero h1{font-size:clamp(36px,7vw,64px);color:var(--gold);margin:0 0 15px}
+    .hero p{font-size:19px;color:#eee;margin:0}
+    main{max-width:1100px;margin:auto;padding:42px 20px}
+    h2{color:var(--gold);margin:0 0 22px}
+    #films{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+    .film{background:var(--panel);border:1px solid #34344d;border-radius:15px;overflow:hidden}
+    .film img{width:100%;height:280px;object-fit:cover;background:#292941}
+    .film-content{padding:17px}
+    .film h3{margin:0 0 8px;color:var(--gold)}
+    .film p{color:var(--muted);line-height:1.5;margin:7px 0}
+    .notice{background:#1d1d32;border-left:4px solid var(--gold);padding:16px;border-radius:8px;margin:12px 0;color:#eee}
+    .ticket-btn{display:inline-block;margin-top:12px;padding:11px 15px;background:var(--gold);color:#171717;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
+    .ticket-btn:hover{filter:brightness(1.08)}
+    dialog{max-width:420px;width:calc(100% - 30px);border:1px solid #55556c;border-radius:14px;background:#1d1d32;color:white;padding:24px}
+    dialog::backdrop{background:#000b}
+    dialog input{width:100%;padding:11px;margin:8px 0 14px;border-radius:8px;border:1px solid #55556c;background:#101020;color:white}
+    .secondary-btn{background:#44445b;color:white;padding:11px 15px;border:0;border-radius:8px;cursor:pointer}
+    footer{text-align:center;padding:25px;background:#080812;color:var(--muted);margin-top:30px}
+    .status{color:var(--muted);font-size:14px;margin-top:18px}
+  </style>
 </head>
 <body>
-
 <header>
-  <div class="logo">⭐ STAR CINEMA</div>
+  <div class="brand">⭐ STAR CINEMA</div>
   <nav>
     <a href="#domov">Domov</a>
-    <a href="#program">Filmy</a>
+    <a href="#program">Filmový program</a>
     <a href="#oznamy">Oznamy</a>
     <a href="#onas">O nás</a>
   </nav>
 </header>
 
 <section class="hero" id="domov">
-  <h1 id="siteTitle">Vitajte v Star Cinema!</h1>
-  <p id="siteSubtitle">Vaše rodinné kino plné filmových zážitkov 🍿</p>
+  <h1>Vitajte v Star Cinema!</h1>
+  <p>Vaše rodinné kino plné filmových zážitkov 🍿</p>
 </section>
 
 <main>
   <section id="program">
     <h2>🎬 Filmový program</h2>
-    <div id="films">Načítavam filmy...</div>
+    <div id="films"><p>Načítavam filmy…</p></div>
+    <p class="status" id="filmStatus" aria-live="polite"></p>
   </section>
 
-  <section id="oznamy" style="margin-top:45px">
+  <section id="oznamy" style="margin-top:48px">
     <h2>📢 Oznamy kina</h2>
-    <div id="notices">Načítavam oznamy...</div>
+    <div id="notices"><p>Načítavam oznamy…</p></div>
   </section>
 
-  <section id="onas" style="margin-top:45px">
+  <section id="onas" style="margin-top:48px">
     <h2>⭐ O našom kine</h2>
-    <p id="aboutText">Star Cinema je naše rodinné kino, kde si užívame filmové zážitky.</p>
+    <p style="color:#c4c4d2;line-height:1.7">
+      Star Cinema je naše rodinné kino, kde si spoločne užívame filmové príbehy, dobrodružstvá a chvíle pohody.
+    </p>
   </section>
 </main>
 
-<footer>
-  ⭐ STAR CINEMA ⭐<br>
-  © <span id="year"></span> Rodinné kino
-</footer>
-
 <dialog id="ticketDialog">
   <form id="ticketForm">
-    <h2>🎟️ Bezplatný lístok</h2>
-    <p id="selectedFilm"></p>
-    <label>Počet lístkov (max. 10)</label>
+    <h2 style="margin-top:0">🎟️ Bezplatný lístok</h2>
+    <p id="selectedFilm" style="color:#c4c4d2"></p>
+    <label for="ticketCount">Počet lístkov</label>
     <input id="ticketCount" type="number" min="1" max="10" value="1" required>
-    <h3>Cena spolu: 0 €</h3>
-    <p>Rezervácia je bezplatná.</p>
-    <button type="submit">Potvrdiť rezerváciu – 0 €</button>
-    <button type="button" id="closeDialog">Zavrieť</button>
-    <p id="message"></p>
+    <p style="color:#f6ca55;font-weight:bold">Cena spolu: 0 €</p>
+    <p style="color:#c4c4d2;font-size:13px">
+      Ide o bezplatnú rezerváciu, neprebieha žiadna platba. Po potvrdení sa zobrazí rezervačný kód.
+    </p>
+    <button class="ticket-btn" type="submit">Potvrdiť rezerváciu – 0 €</button>
+    <button class="secondary-btn" type="button" id="closeTicket">Zavrieť</button>
+    <p id="ticketMessage" aria-live="polite"></p>
   </form>
 </dialog>
 
+<footer>⭐ STAR CINEMA ⭐<br>© <span id="year"></span> Rodinné kino</footer>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDt72e7uxTcvoC-JEtF-QWN3hIjrQ6KuPc",
-  authDomain: "starcinema-736ca.firebaseapp.com",
-  databaseURL: "DOPLN_REALTIME_DATABASE_URL",
-  projectId: "starcinema-736ca",
-  storageBucket: "starcinema-736ca.firebasestorage.app",
-  messagingSenderId: "663535518233",
-  appId: "1:663535518233:web:81998faf65206dd38f6088"
-};
+  document.getElementById("year").textContent = new Date().getFullYear();
 
-document.getElementById("year").textContent=new Date().getFullYear();
-
-const esc = s => String(s??"").replace(/[&<>"']/g,c=>({
-  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-}[c]));
-
-if(firebaseConfig.databaseURL==="DOPLN_REALTIME_DATABASE_URL"){
-  document.getElementById("films").textContent="Najprv doplň Firebase databaseURL.";
-  document.getElementById("notices").textContent="Databáza nie je pripojená.";
-}else{
-  firebase.initializeApp(firebaseConfig);
-  const db=firebase.database();
-  let selectedFilmId=null;
-
-  // Načíta iba publikovanú verziu nastavení webu.
-  db.ref("starCinema/published").on("value",snap=>{
-    const s=snap.val()||{};
-    document.getElementById("siteTitle").textContent=s.title||"Vitajte v Star Cinema!";
-    document.getElementById("siteSubtitle").textContent=s.subtitle||"Vaše rodinné kino plné filmových zážitkov 🍿";
-    document.getElementById("aboutText").textContent=s.about||"Star Cinema je naše rodinné kino.";
-    if(s.background) document.querySelector(".hero").style.background=s.background;
-    if(s.gold){
-      document.documentElement.style.setProperty("--gold",s.gold);
-    }
-  });
-
-  // Filmy
-  db.ref("starCinema/films").on("value",snap=>{
-    const films=snap.val()||{};
-    const entries=Object.entries(films);
-    const box=document.getElementById("films");
-
-    if(!entries.length){
-      box.innerHTML="<p>Zatiaľ nie sú pridané žiadne filmy.</p>";
-      return;
-    }
-
-    box.innerHTML=entries.map(([id,f])=>`
-      <article class="film">
-        ${f.image?`<img src="${esc(f.image)}" alt="Plagát filmu ${esc(f.title)}">`:""}
-        <div class="film-content">
-          <h3>${esc(f.title)}</h3>
-          <p>${esc(f.description)}</p>
-          ${f.date?`<p>📅 ${esc(f.date)}</p>`:""}
-          ${f.time?`<p>🕒 ${esc(f.time)}</p>`:""}
-          <h3>0 €</h3>
-          <button data-book="${esc(id)}">🎟️ Kúpiť lístok – 0 €</button>
-        </div>
-      </article>
-    `).join("");
-  });
-
-  // Oznamy
-  db.ref("starCinema/notices").on("value",snap=>{
-    const notices=snap.val()||{};
-    const values=Object.values(notices);
-    document.getElementById("notices").innerHTML=values.length
-      ?values.map(n=>`<div class="notice">${esc(n.text)}</div>`).join("")
-      :"<p>Momentálne nemáme žiadne oznamy.</p>";
-  });
-
-  // Otvorenie rezervácie
-  document.getElementById("films").addEventListener("click",e=>{
-    const btn=e.target.closest("[data-book]");
-    if(!btn)return;
-    selectedFilmId=btn.dataset.book;
-    document.getElementById("selectedFilm").textContent="Vybraný film";
-    document.getElementById("ticketCount").value=1;
-    document.getElementById("message").textContent="";
-    document.getElementById("ticketDialog").showModal();
-  });
-
-  document.getElementById("closeDialog").onclick=()=>{
-    document.getElementById("ticketDialog").close();
+  const firebaseConfig = {
+    apiKey: "AIzaSyDt72e7uxTcvoC-JEtF-QWN3hIjrQ6KuPc",
+    authDomain: "starcinema-736ca.firebaseapp.com",
+    databaseURL: "DOPLN_REALTIME_DATABASE_URL",
+    projectId: "starcinema-736ca",
+    storageBucket: "starcinema-736ca.firebasestorage.app",
+    messagingSenderId: "663535518233",
+    appId: "1:663535518233:web:81998faf65206dd38f6088"
   };
 
-  // Rezervácia lístkov
-  document.getElementById("ticketForm").addEventListener("submit",async e=>{
-    e.preventDefault();
-    const count=Number(document.getElementById("ticketCount").value);
-    if(!selectedFilmId||!Number.isInteger(count)||count<1||count>10)return;
+  const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-    const snap=await db.ref("starCinema/films/"+selectedFilmId).get();
-    if(!snap.exists()){
-      document.getElementById("message").textContent="Film už nie je dostupný.";
-      return;
-    }
+  if (firebaseConfig.databaseURL === "DOPLN_REALTIME_DATABASE_URL") {
+    document.getElementById("films").textContent =
+      "Doplň URL svojej Firebase Realtime Database.";
+    document.getElementById("notices").textContent =
+      "Databáza zatiaľ nie je pripojená.";
+  } else {
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    const film=snap.val();
-    const code="SC-"+Math.random().toString(36).slice(2,8).toUpperCase();
+    db.ref("starCinema/films").on("value", snapshot => {
+      const films = snapshot.val() || {};
+      const entries = Object.entries(films);
+      const container = document.getElementById("films");
 
-    try{
-      await db.ref("starCinema/tickets").push({
-        code:code,
-        filmId:selectedFilmId,
-        filmTitle:film.title,
-        count:count,
-        price:0,
-        createdAt:Date.now()
-      });
+      if (!entries.length) {
+        container.innerHTML = "<p>Zatiaľ tu nie sú pridané žiadne filmy.</p>";
+        return;
+      }
 
-      document.getElementById("message").textContent=
-        "Rezervácia potvrdená! Kód: "+code+" | "+count+" lístkov | 0 €";
-    }catch(error){
-      document.getElementById("message").textContent="Chyba: "+error.message;
-    }
-  });
-}
+      container.innerHTML = entries.map(([id, film]) => `
+        <article class="film">
+          ${film.image ? `<img src="${escapeHtml(film.image)}" alt="Plagát: ${escapeHtml(film.title)}" loading="lazy">` : ""}
+          <div class="film-content">
+            <h3>${escapeHtml(film.title)}</h3>
+            <p>${escapeHtml(film.description)}</p>
+            ${film.date ? `<p>📅 ${escapeHtml(film.date)}</p>` : ""}
+            ${film.time ? `<p>🕒 ${escapeHtml(film.time)}</p>` : ""}
+            <button class="ticket-btn" type="button"
+              data-book="${escapeHtml(id)}"
+              data-title="${escapeHtml(film.title)}">
+              🎟️ Získať lístok – 0 €
+            </button>
+          </div>
+        </article>`).join("");
+    }, error => {
+      document.getElementById("filmStatus").textContent =
+        "Filmy sa nepodarilo načítať: " + error.message;
+    });
+
+    let selectedFilmId = null;
+    const ticketDialog = document.getElementById("ticketDialog");
+
+    document.getElementById("films").addEventListener("click", event => {
+      const button = event.target.closest("[data-book]");
+      if (!button) return;
+
+      selectedFilmId = button.dataset.book;
+      document.getElementById("selectedFilm").textContent =
+        "Film: " + button.dataset.title;
+      document.getElementById("ticketCount").value = 1;
+      document.getElementById("ticketMessage").textContent = "";
+      ticketDialog.showModal();
+    });
+
+    document.getElementById("closeTicket").addEventListener("click", () => {
+      ticketDialog.close();
+    });
+
+    document.getElementById("ticketForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const count = Number(document.getElementById("ticketCount").value);
+      const message = document.getElementById("ticketMessage");
+
+      if (!selectedFilmId || !Number.isInteger(count) || count < 1 || count > 10) return;
+
+      try {
+        const filmSnapshot = await db.ref("starCinema/films/" + selectedFilmId).get();
+
+        if (!filmSnapshot.exists()) {
+          message.textContent = "Tento film už nie je dostupný.";
+          return;
+        }
+
+        const film = filmSnapshot.val();
+        const code = "SC-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+        await db.ref("starCinema/tickets").push({
+          code,
+          filmId: selectedFilmId,
+          filmTitle: film.title || "Film",
+          count,
+          price: 0,
+          createdAt: Date.now()
+        });
+
+        message.textContent =
+          "Rezervácia potvrdená! Tvoj kód: " + code +
+          " · " + count + " lístok/lístky · 0 €.";
+      } catch (error) {
+        message.textContent = "Rezerváciu sa nepodarilo uložiť: " + error.message;
+      }
+    });
+
+    db.ref("starCinema/notices").on("value", snapshot => {
+      const notices = snapshot.val() || {};
+      const entries = Object.values(notices);
+      const container = document.getElementById("notices");
+
+      container.innerHTML = entries.length
+        ? entries.map(n => `<div class="notice">${escapeHtml(n.text)}</div>`).join("")
+        : "<p style='color:#c4c4d2'>Momentálne nemáme žiadne oznamy.</p>";
+    }, error => {
+      document.getElementById("notices").textContent =
+        "Oznamy sa nepodarilo načítať: " + error.message;
+    });
+  }
 </script>
 </body>
 </html>
